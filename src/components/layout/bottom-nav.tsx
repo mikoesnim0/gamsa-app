@@ -42,8 +42,8 @@ export function BottomNav() {
                 href={item.href}
                 className="flex -mt-6 items-center justify-center"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 border-4 border-background">
-                  <Plus className="h-7 w-7" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_4px_16px_-2px] shadow-primary/50 border-4 border-background active:scale-95 transition-transform">
+                  <Plus className="h-7 w-7" strokeWidth={1.5} />
                 </div>
               </Link>
             );
@@ -62,6 +62,7 @@ export function BottomNav() {
             >
               <item.icon
                 className="h-5 w-5"
+                strokeWidth={1.5}
                 fill={isActive ? "currentColor" : "none"}
               />
               <span className="text-[10px] font-medium">{item.label}</span>

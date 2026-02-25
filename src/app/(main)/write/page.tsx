@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, Clock, Lock, Send, UserPlus, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Clock, LockKeyhole, SendHorizonal, UserPlus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -25,10 +25,10 @@ const EMOTION_OPTIONS: { value: EmotionTag; label: string }[] = [
   { value: "warmth", label: "따뜻함" },
 ];
 
-const DELIVERY_OPTIONS: { value: DeliveryOption; label: string; icon: typeof Send }[] = [
-  { value: "send_now", label: "바로 전송", icon: Send },
+const DELIVERY_OPTIONS: { value: DeliveryOption; label: string; icon: typeof SendHorizonal }[] = [
+  { value: "send_now", label: "바로 전송", icon: SendHorizonal },
   { value: "schedule", label: "예약 전달", icon: Clock },
-  { value: "private_vault", label: "비공개 보관", icon: Lock },
+  { value: "private_vault", label: "비공개 보관", icon: LockKeyhole },
 ];
 
 export default function WritePage() {
@@ -127,7 +127,7 @@ export default function WritePage() {
       <header className="sticky top-0 z-10 flex items-center gap-4 bg-background/80 px-4 py-4 backdrop-blur-md">
         <Link href="/home">
           <Button variant="ghost" size="icon" className="rounded-full">
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
           </Button>
         </Link>
         <h1 className="flex-1 text-lg font-bold">감사 편지 쓰기</h1>
@@ -140,7 +140,7 @@ export default function WritePage() {
             소중한 사람에게
           </Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} />
             <Input
               placeholder="이름을 입력하세요..."
               value={searchQuery}
@@ -194,9 +194,9 @@ export default function WritePage() {
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                       {creatingTarget ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" strokeWidth={1.5} />
                       ) : (
-                        <UserPlus className="h-4 w-4 text-primary" />
+                        <UserPlus className="h-4 w-4 text-primary" strokeWidth={1.5} />
                       )}
                     </div>
                     <p className="text-sm font-medium text-primary">
@@ -292,18 +292,32 @@ export default function WritePage() {
             onValueChange={(val) => setDelivery(val as DeliveryOption)}
             className="space-y-3"
           >
-            {DELIVERY_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-border p-4 hover:bg-muted"
-              >
-                <div className="flex items-center gap-3">
-                  <RadioGroupItem value={option.value} />
-                  <span className="text-sm font-medium">{option.label}</span>
-                </div>
-                <option.icon className="h-5 w-5 text-muted-foreground" />
-              </label>
-            ))}
+            {DELIVERY_OPTIONS.map((option) => {
+              const isSelected = delivery === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-all",
+                    isSelected
+                      ? "border-primary bg-primary/8 ring-1 ring-primary/30"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <RadioGroupItem value={option.value} />
+                    <span className="text-sm font-medium">{option.label}</span>
+                  </div>
+                  <option.icon
+                    className={cn(
+                      "h-5 w-5 transition-colors",
+                      isSelected ? "text-primary" : "text-muted-foreground"
+                    )}
+                    strokeWidth={1.5}
+                  />
+                </label>
+              );
+            })}
           </RadioGroup>
         </section>
       </div>
@@ -312,11 +326,11 @@ export default function WritePage() {
       <div className="fixed bottom-20 left-0 right-0 z-40 px-6">
         <div className="mx-auto max-w-md">
           <Button
-            className="h-14 w-full rounded-2xl bg-primary text-lg font-bold text-primary-foreground shadow-lg shadow-primary/40"
+            className="h-14 w-full rounded-2xl bg-primary text-lg font-bold text-primary-foreground shadow-[0_4px_20px_-4px] shadow-primary/50 active:scale-[0.98] transition-transform"
             onClick={handleSend}
             disabled={sending}
           >
-            {sending && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+            {sending && <Loader2 className="mr-2 h-5 w-5 animate-spin" strokeWidth={1.5} />}
             감사 전하기
           </Button>
         </div>
