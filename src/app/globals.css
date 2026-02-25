@@ -1,26 +1,191 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+ * 감사노트 (Gamsa) Color System — Rule of 2
+ * Primary:   #f6c1c7 (소프트 로즈핑크) — CTA, 강조, 활성 상태
+ * Secondary: #FFF3E8 (웜 크림)         — 배경 포인트, 보조 요소
+ * 나머지는 모두 무채색 (slate 계열)
+ */
+
+:root {
+  --radius: 1rem;
+
+  /* Primary: #f6c1c7 (soft rose pink) */
+  --primary: oklch(0.860 0.061 10.8);
+  --primary-foreground: oklch(0.208 0.040 265.8);
+
+  /* Secondary: #FFF3E8 (warm cream) */
+  --secondary: oklch(0.971 0.020 65.1);
+  --secondary-foreground: oklch(0.279 0.037 260.0);
+
+  /* Background: #f8f6f6 (warm near-white) */
+  --background: oklch(0.975 0.002 17.2);
+  --foreground: oklch(0.208 0.040 265.8);
+
+  /* Cards: white */
+  --card: oklch(1.000 0.000 0);
+  --card-foreground: oklch(0.208 0.040 265.8);
+
+  /* Popover: white */
+  --popover: oklch(1.000 0.000 0);
+  --popover-foreground: oklch(0.208 0.040 265.8);
+
+  /* Muted: slate-100 */
+  --muted: oklch(0.968 0.007 247.9);
+  --muted-foreground: oklch(0.372 0.039 257.3);
+
+  /* Accent: secondary (warm cream) for hover states */
+  --accent: oklch(0.971 0.020 65.1);
+  --accent-foreground: oklch(0.279 0.037 260.0);
+
+  /* Destructive: red */
+  --destructive: oklch(0.577 0.245 27.325);
+
+  /* Border: slate-200 */
+  --border: oklch(0.929 0.013 255.5);
+  --input: oklch(0.929 0.013 255.5);
+  --ring: oklch(0.860 0.061 10.8);
+
+  /* Chart colors (primary variations) */
+  --chart-1: oklch(0.860 0.061 10.8);
+  --chart-2: oklch(0.971 0.020 65.1);
+  --chart-3: oklch(0.750 0.080 10.8);
+  --chart-4: oklch(0.900 0.040 65.1);
+  --chart-5: oklch(0.650 0.100 10.8);
+
+  /* Sidebar (if used) */
+  --sidebar: oklch(0.985 0.002 17.2);
+  --sidebar-foreground: oklch(0.208 0.040 265.8);
+  --sidebar-primary: oklch(0.860 0.061 10.8);
+  --sidebar-primary-foreground: oklch(0.208 0.040 265.8);
+  --sidebar-accent: oklch(0.971 0.020 65.1);
+  --sidebar-accent-foreground: oklch(0.279 0.037 260.0);
+  --sidebar-border: oklch(0.929 0.013 255.5);
+  --sidebar-ring: oklch(0.860 0.061 10.8);
+
+  /* Custom: font families */
+  --font-sans: "Noto Sans KR", "Noto Sans", sans-serif;
+  --font-serif: "Noto Serif KR", "Noto Serif", serif;
+}
+
+.dark {
+  /* Dark background: #211113 (dark burgundy) */
+  --background: oklch(0.201 0.027 11.6);
+  --foreground: oklch(0.968 0.007 247.9);
+
+  --card: oklch(0.260 0.020 11.6);
+  --card-foreground: oklch(0.968 0.007 247.9);
+
+  --popover: oklch(0.260 0.020 11.6);
+  --popover-foreground: oklch(0.968 0.007 247.9);
+
+  /* Primary stays the same in dark mode */
+  --primary: oklch(0.860 0.061 10.8);
+  --primary-foreground: oklch(0.201 0.027 11.6);
+
+  --secondary: oklch(0.300 0.015 65.1);
+  --secondary-foreground: oklch(0.968 0.007 247.9);
+
+  --muted: oklch(0.300 0.015 11.6);
+  --muted-foreground: oklch(0.650 0.020 247.9);
+
+  --accent: oklch(0.300 0.015 65.1);
+  --accent-foreground: oklch(0.968 0.007 247.9);
+
+  --destructive: oklch(0.704 0.191 22.216);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.860 0.061 10.8);
+
+  --chart-1: oklch(0.860 0.061 10.8);
+  --chart-2: oklch(0.750 0.040 65.1);
+  --chart-3: oklch(0.650 0.080 10.8);
+  --chart-4: oklch(0.550 0.050 65.1);
+  --chart-5: oklch(0.500 0.100 10.8);
+
+  --sidebar: oklch(0.220 0.020 11.6);
+  --sidebar-foreground: oklch(0.968 0.007 247.9);
+  --sidebar-primary: oklch(0.860 0.061 10.8);
+  --sidebar-primary-foreground: oklch(0.201 0.027 11.6);
+  --sidebar-accent: oklch(0.300 0.015 65.1);
+  --sidebar-accent-foreground: oklch(0.968 0.007 247.9);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.860 0.061 10.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  /* Safe area support for iOS */
+  html {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  /* Selection color */
+  ::selection {
+    background: oklch(0.860 0.061 10.8 / 30%);
+  }
 }
