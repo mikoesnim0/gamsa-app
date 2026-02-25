@@ -1,28 +1,57 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ArrowLeft, Share2, Calendar, Smile, Users, ChevronRight, Loader2 } from "lucide-react";
+import { Share2, ChevronRight, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import type { GratitudeEntry, Target } from "@/types";
+import type { GratitudeEntry, Target, EmotionTag } from "@/types";
 
 const EMOTION_LABELS: Record<string, string> = {
-  gratitude: "감사",
+  gratitude: "고마움",
   comfort: "위로",
   respect: "존경",
   love: "사랑",
   warmth: "따뜻함",
   joy: "기쁨",
   nostalgia: "그리움",
+  trust: "신뢰",
+  hope: "희망",
 };
+
+const ALL_EMOTIONS: EmotionTag[] = [
+  "gratitude", "comfort", "respect", "love", "warmth", "joy", "trust", "hope",
+];
+
+// From reference donut chart colors
+const EMOTION_COLORS: Record<string, string> = {
+  gratitude: "#efb8c2",
+  comfort: "#f3c9d6",
+  respect: "#e8d9bf",
+  love: "#e79ad0",
+  warmth: "#e9b88f",
+  joy: "#f7b76b",
+  trust: "#9fc6ff",
+  hope: "#a9d88f",
+  nostalgia: "#c9b8ef",
+};
+
+type DateFilter = "recent" | "oldest" | "week" | "month" | "year";
+type OpenMenu = "date" | "emotion" | "friend" | null;
+type TabKey = "total" | "sent" | "received";
+
+const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
+  { value: "recent", label: "최신순" },
+  { value: "oldest", label: "오래된순" },
+  { value: "week", label: "이번 주" },
+  { value: "month", label: "이번 달" },
+  { value: "year", label: "올해" },
+];
 
 function getRelativeTime(date: Date): string {
   const now = new Date();
@@ -37,14 +66,36 @@ function getRelativeTime(date: Date): string {
   return date.toLocaleDateString("ko-KR");
 }
 
-type FilterType = "latest" | "emotion" | "friend";
+function inDateRange(date: Date, filter: DateFilter): boolean {
+  const now = new Date();
+  if (filter === "recent" || filter === "oldest") return true;
+  if (filter === "week") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return date >= start && date <= now;
+  }
+  if (filter === "month") {
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  }
+  return date.getFullYear() === now.getFullYear();
+}
 
 export default function RecordsPage() {
   const { firebaseUser } = useAuth();
+  const searchParams = useSearchParams();
   const [entries, setEntries] = useState<GratitudeEntry[]>([]);
   const [targets, setTargets] = useState<Target[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<FilterType>("latest");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("recent");
+  const [selectedEmotions, setSelectedEmotions] = useState<EmotionTag[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [menuOpen, setMenuOpen] = useState<OpenMenu>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  // Support ?tab=received from home page link
+  const initialTab = searchParams.get("tab") === "received" ? "received" : "total";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -68,32 +119,80 @@ export default function RecordsPage() {
     return map;
   }, [targets]);
 
-  // Compute emotion ratios
+  const friendOptions = useMemo(() => {
+    return targets.map((t) => ({ id: t.id, name: t.name }));
+  }, [targets]);
+
+  // Filter + sort entries
+  const filteredEntries = useMemo(() => {
+    let list = entries.slice();
+
+    list = list.filter((e) => {
+      const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.createdAt as unknown as string);
+      return inDateRange(d, dateFilter);
+    });
+
+    if (selectedEmotions.length > 0) {
+      list = list.filter((e) =>
+        e.emotionTags.some((tag) => selectedEmotions.includes(tag))
+      );
+    }
+
+    if (selectedFriends.length > 0) {
+      list = list.filter((e) => e.targetId && selectedFriends.includes(e.targetId));
+    }
+
+    list.sort((a, b) => {
+      const da = (a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt as unknown as string)).getTime();
+      const db = (b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as unknown as string)).getTime();
+      return dateFilter === "oldest" ? da - db : db - da;
+    });
+
+    return list;
+  }, [entries, dateFilter, selectedEmotions, selectedFriends]);
+
+  // Compute emotion ratios with all 8 emotions
   const emotionRatios = useMemo(() => {
     const counts: Record<string, number> = {};
     let total = 0;
-    for (const entry of entries) {
+    for (const entry of filteredEntries) {
       for (const tag of entry.emotionTags) {
         counts[tag] = (counts[tag] ?? 0) + 1;
         total++;
       }
     }
-    if (total === 0) return [];
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([emotion, count], i) => ({
-        emotion: EMOTION_LABELS[emotion] ?? emotion,
-        percentage: Math.round((count / total) * 100),
-        color: i === 0 ? "bg-primary" : i === 1 ? "bg-primary/60" : "bg-muted",
-      }));
-  }, [entries]);
+    return ALL_EMOTIONS.map((emotion) => ({
+      emotion,
+      label: EMOTION_LABELS[emotion] ?? emotion,
+      count: counts[emotion] ?? 0,
+      percentage: total > 0 ? Math.round(((counts[emotion] ?? 0) / total) * 100) : 0,
+      color: EMOTION_COLORS[emotion] ?? "#ccc",
+    }));
+  }, [filteredEntries]);
+
+  const topEmotion = useMemo(() => {
+    const sorted = emotionRatios.filter((r) => r.count > 0).sort((a, b) => b.count - a.count);
+    return sorted[0] ?? null;
+  }, [emotionRatios]);
 
   const totalSent = entries.length;
 
-  // Format entries for display
+  // Build conic gradient for donut
+  const conicGradient = useMemo(() => {
+    const nonZero = emotionRatios.filter((r) => r.percentage > 0);
+    if (nonZero.length === 0) return `conic-gradient(var(--muted) 0% 100%)`;
+    let acc = 0;
+    const stops: string[] = [];
+    for (const r of nonZero) {
+      stops.push(`${r.color} ${acc}% ${acc + r.percentage}%`);
+      acc += r.percentage;
+    }
+    if (acc < 100) stops.push(`var(--muted) ${acc}% 100%`);
+    return `conic-gradient(${stops.join(", ")})`;
+  }, [emotionRatios]);
+
   const lettersList = useMemo(() => {
-    return entries.map((entry) => {
+    return filteredEntries.map((entry) => {
       const d = entry.createdAt?.toDate
         ? entry.createdAt.toDate()
         : new Date(entry.createdAt as unknown as string);
@@ -105,7 +204,9 @@ export default function RecordsPage() {
         tag: entry.emotionTags[0] ? (EMOTION_LABELS[entry.emotionTags[0]] ?? entry.emotionTags[0]) : "",
       };
     });
-  }, [entries, targetNames]);
+  }, [filteredEntries, targetNames]);
+
+  const displayedLetters = showAll ? lettersList : lettersList.slice(0, 3);
 
   function handleShare() {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -119,28 +220,116 @@ export default function RecordsPage() {
     }
   }
 
-  const filters: { value: FilterType; label: string; icon: typeof Calendar }[] = [
-    { value: "latest", label: "최신순", icon: Calendar },
-    { value: "emotion", label: "감정별", icon: Smile },
-    { value: "friend", label: "친구별", icon: Users },
-  ];
+  function toggleEmotion(emotion: EmotionTag) {
+    setSelectedEmotions((prev) =>
+      prev.includes(emotion) ? prev.filter((e) => e !== emotion) : [...prev, emotion]
+    );
+  }
 
-  const positivePercent = emotionRatios.length > 0
-    ? emotionRatios.reduce((a, b) => a + b.percentage, 0)
-    : 0;
+  function toggleFriend(targetId: string) {
+    setSelectedFriends((prev) =>
+      prev.includes(targetId) ? prev.filter((id) => id !== targetId) : [...prev, targetId]
+    );
+  }
+
+  const dateLabelCurrent = DATE_OPTIONS.find((o) => o.value === dateFilter)?.label ?? "최신순";
+  const emotionLabel = selectedEmotions.length === 0 ? "전체" : `${selectedEmotions.length}개`;
+  const friendLabel = selectedFriends.length === 0 ? "전체" : `${selectedFriends.length}명`;
+
+  // Emotion Donut component (reused in sent/received tabs)
+  function EmotionDonut() {
+    return (
+      <section className="mt-7">
+        <h3 className="font-serif text-[32px] font-bold leading-none text-[#1f2a3d]">감정 비율</h3>
+        <div className="mt-3 rounded-[34px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
+          <div className="flex items-start gap-5">
+            {/* Donut */}
+            <div className="relative h-28 w-28 shrink-0 rounded-full p-[10px]" style={{ background: conicGradient }}>
+              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#f2f2f3]">
+                <div className="text-center">
+                  <span className="font-serif text-[20px] font-bold text-[#1f2a3d]">
+                    {topEmotion ? `${topEmotion.percentage}%` : "0%"}
+                  </span>
+                  <p className="text-[10px] font-semibold tracking-wide text-[#8d99ac]">
+                    {topEmotion?.label ?? "고마움"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Legend */}
+            <div className="flex-1 space-y-1.5">
+              {emotionRatios.map((item) => (
+                <div key={item.emotion} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-[13px] text-[#56667f]">{item.label}</span>
+                  </div>
+                  <span className="text-[13px] font-semibold text-[#1f2a3d]">{item.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Letters list component (reused) — from reference exact colors
+  function LettersList({ letters, emptyText }: { letters: typeof lettersList; emptyText: string }) {
+    return letters.length > 0 ? (
+      <div className="space-y-3">
+        {letters.map((letter) => (
+          <Link key={letter.id} href={`/records/${letter.id}`}>
+            <div className="flex items-center gap-3 rounded-[30px] border border-[#ece8ea] bg-[#f2f2f3] px-3 py-3 transition-colors hover:bg-[#eeeced]">
+              <Avatar className="h-12 w-12">
+                <AvatarFallback className="bg-[#edd1b5] font-serif text-lg text-white">
+                  {letter.name[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between">
+                  <p className="truncate font-serif text-[18px] font-bold leading-none text-[#243244]">
+                    {letter.name}
+                  </p>
+                  <span className="ml-2 shrink-0 text-[10px] text-[#a6b0bf]">
+                    {letter.timeAgo}
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-[14px] text-[#718096]">
+                  {letter.preview}
+                </p>
+                {letter.tag && (
+                  <p className="mt-1 text-[12px] text-[#93a3bf]">{letter.tag}</p>
+                )}
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#c6ceda]" />
+            </div>
+          </Link>
+        ))}
+      </div>
+    ) : (
+      <p className="py-8 text-center text-sm text-[#8d99ac]">{emptyText}</p>
+    );
+  }
 
   return (
     <div className="flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between bg-background/80 px-4 py-4 backdrop-blur-md">
-        <Link href="/home">
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-bold">기록 & 통계</h1>
+      {/* Close menus overlay */}
+      {menuOpen && (
+        <button
+          type="button"
+          aria-label="메뉴 닫기"
+          onClick={() => setMenuOpen(null)}
+          className="fixed inset-0 z-20 bg-transparent"
+        />
+      )}
+
+      {/* Header — centered serif title, from reference colors */}
+      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
+        <div />
+        <h1 className="text-center font-serif text-[26px] font-bold leading-none text-[#1f2a3d]">기록 & 통계</h1>
         <Button variant="ghost" size="icon" className="rounded-full" onClick={handleShare}>
-          <Share2 className="h-5 w-5 text-muted-foreground" />
+          <Share2 className="h-5 w-5 text-[#69798f]" strokeWidth={1.5} />
         </Button>
       </header>
 
@@ -150,197 +339,243 @@ export default function RecordsPage() {
         </div>
       ) : (
         <div className="px-4 pb-8">
-          <Tabs defaultValue="total" className="w-full">
-            <TabsList className="mb-6 w-full">
-              <TabsTrigger value="total" className="flex-1">전체</TabsTrigger>
-              <TabsTrigger value="sent" className="flex-1">보낸</TabsTrigger>
-              <TabsTrigger value="received" className="flex-1">받은</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="total" className="space-y-6">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-2 gap-3">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">보낸 감사</p>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">{totalSent}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {emotionRatios[0] ? `Most: ${emotionRatios[0].emotion}` : ""}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">받은 감사</p>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">0</span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">&nbsp;</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Emotion Ratios */}
-              {emotionRatios.length > 0 && (
-                <Card>
-                  <CardContent className="p-5">
-                    <h3 className="mb-4 text-lg font-bold">감정 비율</h3>
-                    <div className="flex items-center gap-6">
-                      {/* Donut Chart */}
-                      <div className="relative flex h-28 w-28 shrink-0 items-center justify-center">
-                        <svg viewBox="0 0 36 36" className="h-28 w-28 -rotate-90">
-                          <circle
-                            cx="18" cy="18" r="15.915"
-                            fill="none" stroke="currentColor" strokeWidth="3"
-                            className="text-muted"
-                          />
-                          {emotionRatios[0] && (
-                            <circle
-                              cx="18" cy="18" r="15.915"
-                              fill="none" stroke="currentColor" strokeWidth="3"
-                              strokeDasharray={`${emotionRatios[0].percentage} ${100 - emotionRatios[0].percentage}`}
-                              className="text-primary"
-                            />
-                          )}
-                          {emotionRatios[1] && (
-                            <circle
-                              cx="18" cy="18" r="15.915"
-                              fill="none" stroke="currentColor" strokeWidth="3"
-                              strokeDasharray={`${emotionRatios[1].percentage} ${100 - emotionRatios[1].percentage}`}
-                              strokeDashoffset={`-${emotionRatios[0]?.percentage ?? 0}`}
-                              className="text-primary/60"
-                            />
-                          )}
-                        </svg>
-                        <div className="absolute text-center">
-                          <span className="text-xl font-bold">{positivePercent}%</span>
-                          <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                            긍정
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Legend */}
-                      <div className="space-y-3">
-                        {emotionRatios.map((item) => (
-                          <div key={item.emotion} className="flex items-center gap-3">
-                            <div className={`h-3 w-3 rounded-full ${item.color}`} />
-                            <span className="text-sm">{item.emotion}</span>
-                            <span className="ml-auto text-sm font-bold">
-                              {item.percentage}%
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Filter Chips */}
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {filters.map((filter) => (
-                  <Badge
-                    key={filter.value}
-                    variant={activeFilter === filter.value ? "default" : "outline"}
-                    className={cn(
-                      "cursor-pointer shrink-0 rounded-full transition-colors",
-                      activeFilter === filter.value
-                        ? "bg-primary text-primary-foreground"
-                        : ""
-                    )}
-                    onClick={() => setActiveFilter(filter.value)}
-                  >
-                    <filter.icon className="mr-1 h-3 w-3" /> {filter.label}
-                  </Badge>
-                ))}
-              </div>
-
-              {/* Letters List */}
-              <section>
-                <h3 className="mb-4 text-lg font-bold">최근 편지</h3>
-                {lettersList.length > 0 ? (
-                  <div className="space-y-3">
-                    {lettersList.map((letter) => (
-                      <Card key={letter.id} className="shadow-sm">
-                        <CardContent className="flex items-center gap-4 p-4">
-                          <Avatar className="h-12 w-12">
-                            <AvatarFallback className="bg-secondary text-primary">
-                              {letter.name[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between">
-                              <p className="text-sm font-bold">
-                                To: {letter.name}
-                              </p>
-                              <span className="text-[10px] text-muted-foreground">
-                                {letter.timeAgo}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {letter.preview}
-                            </p>
-                            {letter.tag && (
-                              <Badge
-                                variant="secondary"
-                                className="mt-1 bg-primary/10 text-[10px] text-primary"
-                              >
-                                {letter.tag}
-                              </Badge>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="py-8 text-center text-sm text-muted-foreground">
-                    아직 작성한 기록이 없습니다.
-                  </p>
+          {/* Tabs — from reference style */}
+          <div className="mb-4 flex border-b border-[#f1d7dc] text-center text-[14px] font-semibold text-[#8d99ac]">
+            {([
+              { key: "total" as TabKey, label: "전체" },
+              { key: "sent" as TabKey, label: "보낸 감사" },
+              { key: "received" as TabKey, label: "받은 감사" },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "w-1/3 pb-2 transition-colors",
+                  activeTab === tab.key
+                    ? "border-b-2 border-[#efb8c2] text-[#1f2a3d]"
+                    : ""
                 )}
-              </section>
-            </TabsContent>
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-            <TabsContent value="sent" className="space-y-3">
-              {lettersList.length > 0 ? (
-                lettersList.map((letter) => (
-                  <Card key={letter.id} className="shadow-sm">
-                    <CardContent className="flex items-center gap-4 p-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-secondary text-primary">
-                          {letter.name[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold">To: {letter.name}</p>
-                        <p className="text-xs text-muted-foreground">{letter.preview}</p>
-                        {letter.tag && (
-                          <Badge variant="secondary" className="mt-1 bg-primary/10 text-[10px] text-primary">
-                            {letter.tag}
-                          </Badge>
+          {/* ── 전체 Tab ── */}
+          {activeTab === "total" && (
+            <div className="space-y-6">
+              {/* Stats Cards — from reference exact colors */}
+              <div className="grid grid-cols-2 gap-3">
+                <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
+                  <p className="text-[16px] font-semibold text-[#8d99ac]">보낸 감사</p>
+                  <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">{totalSent}</p>
+                </article>
+                <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
+                  <p className="text-[16px] font-semibold text-[#8d99ac]">받은 감사</p>
+                  <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">0</p>
+                </article>
+              </div>
+
+              {/* NOTE: #6 — 감정 비율은 전체 탭에서 제거, 보낸/받은 탭에서만 표시 */}
+
+              {/* Filter Chips — from reference style */}
+              <div className="relative flex gap-2 overflow-visible">
+                {/* Date */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen((v) => (v === "date" ? null : "date"))}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-[13px] font-semibold transition-colors",
+                      dateFilter !== "recent" || menuOpen === "date"
+                        ? "bg-[#efb8c2] text-[#354257]"
+                        : "bg-[#f2f2f3] text-[#56667f]"
+                    )}
+                  >
+                    날짜: {dateLabelCurrent}
+                  </button>
+                  {menuOpen === "date" && (
+                    <div className="absolute bottom-full z-30 mb-2 w-40 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                      {DATE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => { setDateFilter(opt.value); setMenuOpen(null); }}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]",
+                            dateFilter === opt.value ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
+                          )}
+                        >
+                          {opt.label}
+                          {dateFilter === opt.value && <Check className="h-4 w-4 text-[#efb8c2]" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Emotion */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen((v) => (v === "emotion" ? null : "emotion"))}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-[13px] font-semibold transition-colors",
+                      selectedEmotions.length > 0 || menuOpen === "emotion"
+                        ? "bg-[#efb8c2] text-[#354257]"
+                        : "bg-[#f2f2f3] text-[#56667f]"
+                    )}
+                  >
+                    감정: {emotionLabel}
+                  </button>
+                  {menuOpen === "emotion" && (
+                    <div className="absolute bottom-full z-30 mb-2 w-44 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEmotions([])}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]",
+                          selectedEmotions.length === 0 ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
                         )}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">{letter.timeAgo}</span>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  보낸 기록이 없습니다.
-                </p>
-              )}
-            </TabsContent>
+                      >
+                        전체
+                        {selectedEmotions.length === 0 && <Check className="h-4 w-4 text-[#efb8c2]" />}
+                      </button>
+                      {ALL_EMOTIONS.map((emotion) => (
+                        <button
+                          key={emotion}
+                          type="button"
+                          onClick={() => toggleEmotion(emotion)}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]",
+                            selectedEmotions.includes(emotion) ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
+                          )}
+                        >
+                          {EMOTION_LABELS[emotion]}
+                          {selectedEmotions.includes(emotion) && <Check className="h-4 w-4 text-[#efb8c2]" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            <TabsContent value="received" className="space-y-3">
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                받은 기록이 없습니다.
-              </p>
-            </TabsContent>
-          </Tabs>
+                {/* Friend */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen((v) => (v === "friend" ? null : "friend"))}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-[13px] font-semibold transition-colors",
+                      selectedFriends.length > 0 || menuOpen === "friend"
+                        ? "bg-[#efb8c2] text-[#354257]"
+                        : "bg-[#f2f2f3] text-[#56667f]"
+                    )}
+                  >
+                    친구: {friendLabel}
+                  </button>
+                  {menuOpen === "friend" && (
+                    <div className="absolute bottom-full right-0 z-30 mb-2 w-48 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFriends([])}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]",
+                          selectedFriends.length === 0 ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
+                        )}
+                      >
+                        전체
+                        {selectedFriends.length === 0 && <Check className="h-4 w-4 text-[#efb8c2]" />}
+                      </button>
+                      {friendOptions.map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => toggleFriend(f.id)}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]",
+                            selectedFriends.includes(f.id) ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
+                          )}
+                        >
+                          {f.name}
+                          {selectedFriends.includes(f.id) && <Check className="h-4 w-4 text-[#efb8c2]" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Letters */}
+              <section>
+                <div className="mb-4 flex items-end justify-between">
+                  <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">최근 감사</h3>
+                  {lettersList.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAll(!showAll)}
+                      className="text-[14px] font-semibold text-primary"
+                    >
+                      {showAll ? "접기" : "전체 보기"}
+                    </button>
+                  )}
+                </div>
+                <LettersList
+                  letters={displayedLetters}
+                  emptyText={
+                    selectedEmotions.length > 0 || selectedFriends.length > 0
+                      ? "필터 조건에 맞는 기록이 없습니다."
+                      : "기록이 없습니다."
+                  }
+                />
+              </section>
+            </div>
+          )}
+
+          {/* ── 보낸 감사 Tab ── */}
+          {activeTab === "sent" && (
+            <div className="space-y-6">
+              {/* Stats */}
+              <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
+                <p className="text-[16px] font-semibold text-[#8d99ac]">보낸 감사</p>
+                <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">{totalSent}</p>
+              </article>
+
+              {/* #6: Emotion ratio in sent tab */}
+              <EmotionDonut />
+
+              {/* Letters */}
+              <section>
+                <h3 className="mb-4 font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">보낸 감사 목록</h3>
+                <LettersList letters={lettersList} emptyText="보낸 감사가 없습니다." />
+              </section>
+            </div>
+          )}
+
+          {/* ── 받은 감사 Tab ── */}
+          {activeTab === "received" && (
+            <div className="space-y-6">
+              <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
+                <p className="text-[16px] font-semibold text-[#8d99ac]">받은 감사</p>
+                <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">0</p>
+              </article>
+
+              {/* #6: Emotion ratio placeholder for received tab */}
+              <section className="mt-7">
+                <h3 className="font-serif text-[32px] font-bold leading-none text-[#1f2a3d]">감정 비율</h3>
+                <p className="mt-3 text-sm text-[#8d99ac]">
+                  받은 감사가 없습니다.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="mb-4 font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">받은 감사 목록</h3>
+                <p className="py-8 text-center text-sm text-[#8d99ac]">
+                  받은 감사가 없습니다.
+                </p>
+              </section>
+            </div>
+          )}
         </div>
       )}
     </div>

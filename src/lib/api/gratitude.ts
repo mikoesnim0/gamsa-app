@@ -114,3 +114,15 @@ export async function getRecentEntries(
 ): Promise<GratitudeEntry[]> {
   return getEntries(userId, { limitCount: count });
 }
+
+/**
+ * 받은 편지 수 (이번 주)
+ * Phase 1: subcollection 구조상 cross-user 쿼리 불가 → 0 반환
+ * Phase 2: Cloud Function이 received_letters 컬렉션에 복사하면 실제 쿼리로 전환
+ */
+export async function getWeeklyReceivedCount(
+  _userId: string
+): Promise<number> {
+  // TODO: Phase 2에서 received_letters top-level collection 또는 Cloud Function 연동
+  return 0;
+}

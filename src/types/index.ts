@@ -44,7 +44,9 @@ export type EmotionTag =
   | "love"
   | "warmth"
   | "joy"
-  | "nostalgia";
+  | "nostalgia"
+  | "trust"
+  | "hope";
 
 export interface GratitudeEntry {
   id: string;
@@ -53,6 +55,7 @@ export interface GratitudeEntry {
   title: string | null;
   targetId: string | null;
   emotionTags: EmotionTag[];
+  imageUrl: string | null;
   isPublic: boolean;
   createdAt: Timestamp;
 }
@@ -62,6 +65,7 @@ export interface GratitudeEntryCreate {
   title: string | null;
   targetId: string | null;
   emotionTags: EmotionTag[];
+  imageUrl?: string | null;
   isPublic: boolean;
 }
 
@@ -178,6 +182,23 @@ export interface RecordStats {
   mostReceivedEmotion: EmotionTag;
   emotionRatios: EmotionRatio[];
   positivePercent: number;
+}
+
+// ─── Notification Settings ─────────────────────────────
+
+export interface NotificationSettings {
+  newLetterOptIn: boolean;
+  deliveryOptIn: boolean;
+  marketingOptIn: boolean;
+  dailyReminderTime: string; // "HH:mm" format, e.g. "09:00"
+}
+
+// ─── Blocked User ──────────────────────────────────────
+
+export interface BlockedUser {
+  id: string;
+  name: string;
+  createdAt: Timestamp;
 }
 
 // ─── Delivery Options ───────────────────────────────────

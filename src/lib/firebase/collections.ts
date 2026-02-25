@@ -22,6 +22,7 @@ import type {
   GratitudePage,
   Notification,
   Friend,
+  BlockedUser,
 } from "@/types";
 
 type FirestoreData<T> = Omit<T, "id">;
@@ -66,3 +67,8 @@ export const friendsCol = (userId: string) =>
   typedCollection<Friend>(`users/${userId}/friends`);
 export const friendDoc = (userId: string, friendId: string) =>
   typedDoc<Friend>(`users/${userId}/friends`, friendId);
+
+export const blockedCol = (userId: string) =>
+  typedCollection<BlockedUser>(`users/${userId}/blocked`);
+export const blockedDoc = (userId: string, targetName: string) =>
+  typedDoc<BlockedUser>(`users/${userId}/blocked`, targetName);

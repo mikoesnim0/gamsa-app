@@ -14,6 +14,7 @@ import * as auth from "./auth";
 import * as notifications from "./notifications";
 import * as friends from "./friends";
 import * as streak from "./streak";
+import * as blocked from "./blocked";
 
 export const api = {
   gratitude,
@@ -22,4 +23,5 @@ export const api = {
   notifications,
   friends,
   streak,
+  blocked,
 } as const;

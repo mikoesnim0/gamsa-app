@@ -1,23 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Copy, Calendar, ArrowLeftRight, ChevronRight, X, Check, QrCode, UserPlus, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Search, Copy, Share2, X, Check, QrCode, Loader2, Phone, MessageCircle, Download } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { Friend } from "@/types";
+
+// Canvas helpers for QR invite card generation
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number
+) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
 
 export default function FriendsPage() {
   const { firebaseUser, user } = useAuth();
@@ -25,9 +33,13 @@ export default function FriendsPage() {
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrOpen, setQrOpen] = useState(false);
-  const [addFriendOpen, setAddFriendOpen] = useState(false);
-  const [friendCode, setFriendCode] = useState("");
+  const [qrSaving, setQrSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [friendCodeInput, setFriendCodeInput] = useState("");
   const [addingFriend, setAddingFriend] = useState(false);
+
+  // Tab
+  const [activeTab, setActiveTab] = useState<"friends" | "requests">("friends");
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -47,6 +59,19 @@ export default function FriendsPage() {
 
   const inviteCode = user?.inviteCode ?? "---";
 
+  // Filter friends by search query
+  const filteredFriends = useMemo(() => {
+    if (!searchQuery.trim()) return friends;
+    const q = searchQuery.trim().toLowerCase();
+    return friends.filter((f) => {
+      const name = f.friendProfile?.name ?? f.friendUserId;
+      return name.toLowerCase().includes(q);
+    });
+  }, [friends, searchQuery]);
+
+  // Check if input looks like invite code
+  const isInviteCode = /^[A-Z0-9]{3,8}-\d{2,4}$/i.test(searchQuery.trim());
+
   function handleCopyCode() {
     navigator.clipboard.writeText(inviteCode).then(() => {
       toast.success("초대 코드가 복사되었습니다!");
@@ -55,22 +80,16 @@ export default function FriendsPage() {
     });
   }
 
-  function handleQrCode() {
-    setQrOpen(true);
-  }
-
-  function handleAddFriend() {
-    setAddFriendOpen(true);
-  }
-
-  async function handleSubmitFriendCode() {
-    if (!firebaseUser || !friendCode.trim()) return;
+  async function handleSendFriendRequest() {
+    if (!firebaseUser) return;
+    const code = isInviteCode ? searchQuery.trim() : friendCodeInput.trim();
+    if (!code) return;
     setAddingFriend(true);
     try {
-      await api.friends.sendFriendRequestByCode(firebaseUser.uid, friendCode.trim());
+      await api.friends.sendFriendRequestByCode(firebaseUser.uid, code);
       toast.success("친구 요청을 보냈습니다!");
-      setFriendCode("");
-      setAddFriendOpen(false);
+      setSearchQuery("");
+      setFriendCodeInput("");
     } catch {
       toast.error("친구 요청에 실패했습니다. 코드를 확인해주세요.");
     } finally {
@@ -84,6 +103,9 @@ export default function FriendsPage() {
       await api.friends.acceptFriendRequest(firebaseUser.uid, id);
       setPendingRequests((prev) => prev.filter((r) => r.id !== id));
       toast.success("친구 요청을 수락했습니다!");
+      // Refresh friends
+      const updatedFriends = await api.friends.getFriends(firebaseUser.uid);
+      setFriends(updatedFriends);
     } catch {
       toast.error("요청 처리에 실패했습니다.");
     }
@@ -100,151 +122,294 @@ export default function FriendsPage() {
     }
   }
 
-  function formatDate(ts: { toDate?: () => Date }): string {
-    const d = ts?.toDate ? ts.toDate() : new Date(ts as unknown as string);
-    return d.toLocaleDateString("ko-KR");
-  }
+  // Generate invite card image and download — from reference canvas pattern
+  const saveQrPicture = useCallback(async () => {
+    setQrSaving(true);
+    try {
+      // Fetch QR code image from external API
+      const qrPayload = JSON.stringify({
+        type: "friend_invite",
+        viewer: user?.name ?? "guest",
+        code: inviteCode,
+        link: `${window.location.origin}/?invite=${encodeURIComponent(inviteCode)}`,
+      });
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrPayload)}`;
+
+      const res = await fetch(qrUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error("QR fetch failed");
+      const qrBlob = await res.blob();
+      const qrUrlLocal = URL.createObjectURL(qrBlob);
+      const qrImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new window.Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = qrUrlLocal;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1440;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("No canvas context");
+
+      // Background
+      ctx.fillStyle = "#f4ebe1";
+      ctx.fillRect(0, 0, 1080, 1440);
+
+      // Rounded card with shadow
+      ctx.shadowColor = "rgba(70, 50, 35, 0.15)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 8;
+      roundedRectPath(ctx, 30, 30, 1020, 1380, 60);
+      ctx.fillStyle = "#f7ede1";
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Title "Gratella"
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#5d4a46";
+      ctx.font = "700 84px 'Noto Serif', serif";
+      ctx.fillText("Gratella", 540, 220);
+
+      // Subtitle
+      ctx.fillStyle = "#9a827a";
+      ctx.font = "500 40px 'Noto Sans', sans-serif";
+      ctx.fillText("감사를 나누는 공간", 540, 292);
+
+      // Pink accent line
+      ctx.fillStyle = "#efb8c2";
+      roundedRectPath(ctx, 490, 325, 100, 8, 6);
+      ctx.fill();
+
+      // QR container background
+      roundedRectPath(ctx, 272, 388, 536, 536, 46);
+      ctx.fillStyle = "#f2f2f2";
+      ctx.fill();
+
+      // Inner white container with shadow
+      ctx.shadowColor = "rgba(0,0,0,0.18)";
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 8;
+      roundedRectPath(ctx, 365, 482, 350, 350, 14);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Draw QR image
+      ctx.drawImage(qrImg, 431, 545, 218, 218);
+      URL.revokeObjectURL(qrUrlLocal);
+
+      // Instructions
+      ctx.fillStyle = "#6f5a54";
+      ctx.font = "500 50px 'Noto Sans', sans-serif";
+      ctx.fillText("QR 코드를 스캔해서", 540, 1020);
+      ctx.fillText("친구를 추가해보세요", 540, 1090);
+
+      // Invite code
+      ctx.fillStyle = "#5d4a46";
+      ctx.font = "700 36px 'Noto Serif', serif";
+      ctx.fillText(inviteCode, 540, 1170);
+
+      // Decorative dots
+      ["#efb8c2", "#f4d3db", "#f1dee3"].forEach((dot, idx) => {
+        ctx.beginPath();
+        ctx.fillStyle = dot;
+        ctx.arc(515 + idx * 28, 1260, 6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Download
+      const outBlob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+      if (!outBlob) throw new Error("Canvas toBlob failed");
+      const outUrl = URL.createObjectURL(outBlob);
+      const a = document.createElement("a");
+      a.href = outUrl;
+      a.download = `invite-card-${(user?.name ?? "guest").toLowerCase()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(outUrl);
+      toast.success("초대 카드가 저장되었습니다!");
+    } catch {
+      toast.error("이미지 저장에 실패했습니다.");
+    } finally {
+      setQrSaving(false);
+    }
+  }, [inviteCode, user?.name]);
 
   return (
     <div className="flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between bg-background/80 px-4 py-4 backdrop-blur-md">
-        <Button variant="ghost" size="icon" className="rounded-full" onClick={handleQrCode}>
-          <QrCode className="h-5 w-5 text-primary" />
-        </Button>
-        <h1 className="text-lg font-bold">커뮤니티</h1>
-        <Button variant="ghost" size="icon" className="rounded-full" onClick={handleAddFriend}>
-          <UserPlus className="h-5 w-5 text-primary" />
-        </Button>
+      {/* Header — from reference: centered serif, QR on right */}
+      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
+        <div />
+        <h1 className="text-center font-serif text-[30px] font-bold leading-none">커뮤니티</h1>
+        <button
+          type="button"
+          onClick={() => setQrOpen(true)}
+          className="flex h-10 w-10 items-center justify-center"
+        >
+          <QrCode className="h-5 w-5 text-primary" strokeWidth={1.5} />
+        </button>
       </header>
 
-      <div className="px-4 pb-8">
-        <Tabs defaultValue="friends" className="w-full">
-          <TabsList className="mb-4 w-full">
-            <TabsTrigger value="friends" className="flex-1">친구</TabsTrigger>
-            <TabsTrigger value="requests" className="flex-1">
-              요청
-              {pendingRequests.length > 0 && (
-                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                  {pendingRequests.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+      <div className="mx-auto w-full max-w-[390px] px-4 pb-8">
+        {/* Tabs — from reference */}
+        <div className="mb-4 flex text-center text-[15px] font-semibold text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setActiveTab("friends")}
+            className={cn(
+              "w-1/2 pb-2",
+              activeTab === "friends" ? "text-foreground" : ""
+            )}
+          >
+            친구
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("requests")}
+            className={cn(
+              "w-1/2 pb-2",
+              activeTab === "requests" ? "text-foreground" : ""
+            )}
+          >
+            요청
+            {pendingRequests.length > 0 && (
+              <span className="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
+                {pendingRequests.length}
+              </span>
+            )}
+          </button>
+        </div>
 
-          <TabsContent value="friends" className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+        {activeTab === "friends" && (
+          <div className="space-y-3">
+            {/* Search bar — from reference: rounded-full */}
+            <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-3">
+              <Search className="h-5 w-5 text-primary" strokeWidth={1.5} />
+              <input
                 placeholder="친구 찾기..."
-                className="rounded-xl pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full border-0 bg-transparent text-[17px] text-foreground outline-none ring-0 placeholder:text-muted-foreground"
               />
             </div>
 
-            {/* Invite Code */}
-            <Card className="border-primary/20 bg-secondary/50">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-                  <ArrowLeftRight className="h-5 w-5 text-primary" />
+            {/* If invite code detected, show send request */}
+            {isInviteCode && (
+              <button
+                type="button"
+                onClick={handleSendFriendRequest}
+                disabled={addingFriend}
+                className="w-full rounded-full bg-primary px-4 py-2.5 text-[14px] font-semibold text-foreground"
+              >
+                {addingFriend ? (
+                  <Loader2 className="inline mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                친구 요청 보내기
+              </button>
+            )}
+
+            {/* Invite Code Card — from reference screenshot 002 */}
+            <div className="rounded-[30px] bg-secondary px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+                    <Share2 className="h-5 w-5 text-primary-foreground" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">초대 코드</p>
+                    <p className="font-serif text-[28px] font-bold leading-none">{inviteCode}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    나의 초대 코드
-                  </p>
-                  <p className="text-lg font-bold tracking-wider">{inviteCode}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  className="text-sm font-medium text-primary"
+                <button
+                  type="button"
                   onClick={handleCopyCode}
+                  className="rounded-full bg-muted px-5 py-2 text-[16px] font-bold text-primary"
                 >
-                  <Copy className="mr-1 h-4 w-4" /> Copy
-                </Button>
-              </CardContent>
-            </Card>
+                  복사
+                </button>
+              </div>
+            </div>
 
             {/* Friends List */}
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : friends.length > 0 ? (
-              <div className="space-y-1">
-                {friends.map((friend) => (
-                  <div
-                    key={friend.id}
-                    className="flex items-center gap-4 rounded-xl p-3 hover:bg-muted"
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-secondary text-primary">
-                        {friend.friendProfile?.name?.[0] ?? "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-bold">{friend.friendProfile?.name ?? friend.friendUserId}</p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" /> {formatDate(friend.createdAt)}
-                        </span>
+            ) : filteredFriends.length > 0 ? (
+              <div className="space-y-3">
+                {filteredFriends.map((friend) => {
+                  const name = friend.friendProfile?.name ?? friend.friendUserId;
+                  const bio = friend.friendProfile?.bio ?? "";
+                  const hasPhone = !!friend.friendProfile?.stats; // placeholder
+                  return (
+                    <article key={friend.id} className="rounded-[24px] bg-muted px-3 py-3">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-14 w-14">
+                          <AvatarFallback className="bg-primary/20 text-primary font-serif text-xl">
+                            {name[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate font-serif text-[20px] font-bold leading-none">
+                              {name}
+                            </p>
+                            {/* Linked icons */}
+                            <Phone className="h-3.5 w-3.5 text-muted-foreground/50" strokeWidth={1.5} />
+                            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground/50" strokeWidth={1.5} />
+                          </div>
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            @{friend.friendUserId.slice(0, 8)}
+                          </p>
+                          {bio && (
+                            <p className="mt-0.5 truncate text-[12px] text-muted-foreground/80">
+                              {bio}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-primary/50" />
-                  </div>
-                ))}
+
+                      {/* Action buttons */}
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          className="rounded-full bg-card px-3 py-2 text-center text-[13px] font-semibold text-muted-foreground"
+                        >
+                          좋아요
+                        </button>
+                        <Link
+                          href={`/write?target=${encodeURIComponent(name)}`}
+                          className="rounded-full bg-primary px-3 py-2 text-center text-[13px] font-semibold text-foreground"
+                        >
+                          편지 쓰기
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                아직 친구가 없습니다. 초대 코드를 공유해보세요!
+            ) : searchQuery.trim() ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                &quot;{searchQuery.trim()}&quot; 검색 결과가 없습니다.
               </p>
+            ) : (
+              <div className="rounded-[20px] bg-muted px-3 py-4 text-center">
+                <p className="text-sm text-muted-foreground">친구가 없습니다.</p>
+              </div>
             )}
+          </div>
+        )}
 
-            {/* Pending (shown at bottom) */}
-            {pendingRequests.length > 0 && (
-              <>
-                <p className="pt-4 text-xs font-bold uppercase tracking-widest text-primary">
-                  대기 중 ({pendingRequests.length})
-                </p>
-                {pendingRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="flex items-center gap-4 rounded-xl bg-muted/50 p-3"
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-secondary text-primary">
-                        {request.friendProfile?.name?.[0] ?? "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-bold">{request.friendProfile?.name ?? request.friendUserId}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(request.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-full border border-border"
-                        onClick={() => handleRejectRequest(request.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        className="h-9 w-9 rounded-full bg-primary text-primary-foreground"
-                        onClick={() => handleAcceptRequest(request.id)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="requests" className="space-y-4">
+        {activeTab === "requests" && (
+          <div className="space-y-3">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -253,108 +418,98 @@ export default function FriendsPage() {
               pendingRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center gap-4 rounded-xl bg-muted/50 p-3"
+                  className="flex items-center justify-between rounded-[20px] bg-muted px-3 py-3"
                 >
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback className="bg-secondary text-primary">
-                      {request.friendProfile?.name?.[0] ?? "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-bold">{request.friendProfile?.name ?? request.friendUserId}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(request.createdAt)}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="bg-primary/20 text-primary font-serif">
+                        {(request.friendProfile?.name ?? request.friendUserId)[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-serif text-[16px] font-bold">
+                        {request.friendProfile?.name ?? request.friendUserId}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-full border border-border"
+                    <button
+                      type="button"
                       onClick={() => handleRejectRequest(request.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-muted-foreground/20"
                     >
                       <X className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="h-9 w-9 rounded-full bg-primary text-primary-foreground"
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleAcceptRequest(request.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary"
                     >
-                      <Check className="h-4 w-4" />
-                    </Button>
+                      <Check className="h-4 w-4 text-primary-foreground" />
+                    </button>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="py-8 text-center text-muted-foreground">
+              <div className="py-8 text-center text-sm text-muted-foreground">
                 받은 친구 요청이 없습니다.
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
 
-      {/* QR Code Dialog */}
-      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="max-w-xs rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-center">내 QR 코드</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div className="rounded-2xl bg-white p-4">
-              <QRCodeSVG
-                value={`gamsa://invite/${inviteCode}`}
-                size={200}
-                level="M"
-                fgColor="#211113"
-                bgColor="#ffffff"
-              />
+      {/* QR Modal — from reference with save feature */}
+      {qrOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4">
+          <div className="w-full max-w-[360px] rounded-[26px] bg-card p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-serif text-lg font-bold text-[#1f2a3d]">내 QR 코드</h3>
+              <button type="button" onClick={() => setQrOpen(false)}>
+                <X className="h-5 w-5 text-[#8d99ac]" />
+              </button>
             </div>
-            <p className="text-center text-sm text-muted-foreground">
-              친구가 이 QR 코드를 스캔하면
-              <br />
-              바로 친구 추가가 됩니다.
-            </p>
-            <div className="flex items-center gap-2 rounded-xl bg-muted px-4 py-2">
-              <span className="font-mono text-lg font-bold tracking-wider">
-                {inviteCode}
-              </span>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCopyCode}>
-                <Copy className="h-4 w-4" strokeWidth={1.5} />
-              </Button>
+            <div className="flex flex-col items-center gap-4">
+              <div className="mx-auto rounded-[12px] bg-white p-4 shadow-sm">
+                <QRCodeSVG
+                  value={`gamsa://invite/${inviteCode}`}
+                  size={240}
+                  level="M"
+                  fgColor="#211113"
+                  bgColor="#ffffff"
+                />
+              </div>
+              <p className="text-center text-sm text-[#8d99ac]">
+                친구가 이 QR 코드를 스캔하면 바로 친구 추가가 됩니다.
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="font-serif text-[22px] font-bold text-[#1f2a3d]">{inviteCode}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="rounded-full bg-[#f2f2f3] px-4 py-1.5 text-[14px] font-bold text-[#efb8c2]"
+                >
+                  복사
+                </button>
+              </div>
+              {/* Save as image button */}
+              <button
+                type="button"
+                onClick={saveQrPicture}
+                disabled={qrSaving}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#efb8c2] py-3 text-[15px] font-bold text-white disabled:opacity-60"
+              >
+                {qrSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" strokeWidth={2} />
+                )}
+                초대 카드 저장
+              </button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Friend Dialog */}
-      <Dialog open={addFriendOpen} onOpenChange={setAddFriendOpen}>
-        <DialogContent className="max-w-xs rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-center">친구 추가</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-center text-sm text-muted-foreground">
-              친구의 초대 코드를 입력해주세요.
-            </p>
-            <Input
-              placeholder="초대 코드 입력"
-              value={friendCode}
-              onChange={(e) => setFriendCode(e.target.value)}
-              className="rounded-xl text-center text-lg font-mono tracking-wider"
-              maxLength={8}
-            />
-            <Button
-              className="h-12 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground"
-              onClick={handleSubmitFriendCode}
-              disabled={addingFriend || !friendCode.trim()}
-            >
-              {addingFriend && <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.5} />}
-              친구 요청 보내기
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }

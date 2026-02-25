@@ -111,6 +111,40 @@ export async function updateUserProfile(
   await updateDoc(userRef, { ...data, updatedAt: serverTimestamp() });
 }
 
+export async function updateNotificationSettings(
+  userId: string,
+  settings: {
+    newLetterOptIn?: boolean;
+    deliveryOptIn?: boolean;
+    marketingOptIn?: boolean;
+    dailyReminderTime?: string;
+  }
+): Promise<void> {
+  const db = getFirebaseDb();
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, { ...settings, updatedAt: serverTimestamp() });
+}
+
+export async function getNotificationSettings(
+  userId: string
+): Promise<{
+  newLetterOptIn: boolean;
+  deliveryOptIn: boolean;
+  marketingOptIn: boolean;
+  dailyReminderTime: string;
+}> {
+  const db = getFirebaseDb();
+  const userRef = doc(db, "users", userId);
+  const snap = await getDoc(userRef);
+  const data = snap.data();
+  return {
+    newLetterOptIn: data?.newLetterOptIn ?? true,
+    deliveryOptIn: data?.deliveryOptIn ?? true,
+    marketingOptIn: data?.marketingOptIn ?? false,
+    dailyReminderTime: data?.dailyReminderTime ?? "09:00",
+  };
+}
+
 function generateInviteCode(): string {
   const adjectives = ["PASTEL", "SUNNY", "WARM", "GENTLE", "HAPPY", "BRIGHT"];
   const adj = adjectives[Math.floor(Math.random() * adjectives.length)];

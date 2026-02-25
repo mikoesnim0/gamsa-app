@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Settings, Bell, PenLine, CalendarDays, Award, BarChart3, Calendar, FileText, Smile, Loader2 } from "lucide-react";
+import { Bell, PenLine, CalendarDays, Award, BarChart3, Calendar, FileText, Smile, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -21,6 +19,8 @@ const EMOTION_LABELS: Record<string, string> = {
   warmth: "따뜻함",
   joy: "기쁨",
   nostalgia: "그리움",
+  trust: "신뢰",
+  hope: "희망",
 };
 
 function getRelativeTime(date: Date): string {
@@ -41,6 +41,8 @@ export default function HomePage() {
   const [entries, setEntries] = useState<GratitudeEntry[]>([]);
   const [targets, setTargets] = useState<Target[]>([]);
   const [todayCount, setTodayCount] = useState(0);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [receivedCount, setReceivedCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,11 +53,15 @@ export default function HomePage() {
       api.gratitude.getRecentEntries(uid, 10),
       api.targets.getTargets(uid),
       api.gratitude.getTodayEntryCount(uid),
+      api.notifications.getUnreadCount(uid),
+      api.gratitude.getWeeklyReceivedCount(uid),
     ])
-      .then(([recentEntries, targetList, count]) => {
+      .then(([recentEntries, targetList, count, unreadCount, weeklyReceived]) => {
         setEntries(recentEntries);
         setTargets(targetList);
         setTodayCount(count);
+        setHasUnread(unreadCount > 0);
+        setReceivedCount(weeklyReceived);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -98,6 +104,7 @@ export default function HomePage() {
       return {
         id: entry.id,
         name: entry.targetId ? (targetNames[entry.targetId] ?? "알 수 없음") : "나에게",
+        title: entry.title,
         content: entry.content,
         timeAgo: getRelativeTime(d),
         tags: entry.emotionTags.map((t) => EMOTION_LABELS[t] ?? t),
@@ -111,231 +118,220 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-10 flex items-center justify-between bg-background/80 px-6 py-4 backdrop-blur-md">
-        <Link href="/profile">
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/20">
-            <Settings className="h-5 w-5 text-muted-foreground" />
-          </Button>
-        </Link>
-        <h1 className="font-serif text-2xl font-bold italic tracking-tight text-primary">
-          감사노트
+      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-5 py-4 backdrop-blur-md">
+        <div />
+        <h1 className="text-center font-serif text-[30px] font-bold italic leading-none tracking-tight text-primary">
+          Gratella
         </h1>
         <Link href="/notifications">
           <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-primary/20">
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-background bg-primary" />
+            <Bell className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+            {hasUnread && (
+              <>
+                <span className="absolute right-[6px] top-[4px] h-3.5 w-3.5 rounded-full bg-primary/45 animate-ping" />
+                <span className="absolute right-[8px] top-[6px] h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+              </>
+            )}
           </Button>
         </Link>
       </header>
 
-      <div className="space-y-6 px-4 pb-8">
+      <div className="space-y-3 px-4 pb-8">
         {/* Today's Record Card */}
-        <Card className="border-primary/10 shadow-sm">
-          <CardContent className="p-5">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-bold">오늘의 기록</h2>
-                <p className="text-sm text-muted-foreground">
-                  {todayCount}개 작성
+        <div className="rounded-[28px] border border-primary/10 bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-bold">오늘의 기록</h2>
+              <p className="text-sm text-muted-foreground">
+                {todayCount} 보낸 감사 / 0 받은 감사
+              </p>
+            </div>
+            <Link href="/write">
+              <div className="rounded-full bg-secondary p-2">
+                <PenLine className="h-5 w-5 text-primary" />
+              </div>
+            </Link>
+          </div>
+          <div className="flex items-center gap-5 rounded-[20px] bg-secondary p-3">
+            {/* Daily goal ring */}
+            <div className="relative flex shrink-0 items-center justify-center">
+              <svg width="70" height="70" viewBox="0 0 70 70">
+                <circle cx="35" cy="35" r="29" fill="none" stroke="currentColor" strokeWidth="5" className="text-primary/20" />
+                <circle cx="35" cy="35" r="29" fill="none" stroke="currentColor" strokeWidth="5" className="text-primary" strokeLinecap="round" strokeDasharray={`${progress * 182.2} 182.2`} transform="rotate(-90 35 35)" />
+              </svg>
+              <span className="absolute text-base font-bold text-primary">
+                {todayCount}/{dailyGoal}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <p className="font-serif text-2xl font-bold text-foreground">{todayCount}</p>
+              <p className="text-xs text-muted-foreground">오늘의 감사</p>
+              {todayCount >= dailyGoal ? (
+                <p className="text-[10px] text-primary">일일 목표 달성!</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  {dailyGoal - todayCount}개 더 작성하면 목표 달성!
                 </p>
-              </div>
-              <Link href="/write">
-                <div className="rounded-full bg-secondary p-2">
-                  <PenLine className="h-5 w-5 text-primary" />
-                </div>
-              </Link>
+              )}
             </div>
-            <div className="flex items-center gap-6 rounded-lg bg-secondary p-4">
-              {/* Daily goal ring */}
-              <div className="relative flex shrink-0 items-center justify-center">
-                <svg width="80" height="80" viewBox="0 0 80 80">
-                  <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="6" className="text-primary/20" />
-                  <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="6" className="text-primary" strokeLinecap="round" strokeDasharray={`${progress * 213.6} 213.6`} transform="rotate(-90 40 40)" />
-                </svg>
-                <span className="absolute text-lg font-bold text-primary">
-                  {todayCount}/{dailyGoal}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <p className="font-serif text-2xl font-bold text-foreground">{todayCount}</p>
-                <p className="text-xs text-muted-foreground">오늘의 감사 편지</p>
-                {todayCount >= dailyGoal ? (
-                  <p className="text-[10px] text-primary">일일 목표 달성!</p>
-                ) : (
-                  <p className="text-[10px] text-muted-foreground">
-                    {dailyGoal - todayCount}개 더 작성하면 목표 달성!
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Weekly Summary Card */}
-        <Card className="border-primary/20 bg-primary/10">
-          <CardContent className="p-5">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-bold">주간 요약</h2>
+        {/* Received Letters Summary — capsule card */}
+        <Link href="/records?tab=received">
+          <div className="flex items-center gap-4 rounded-full bg-secondary px-5 py-3.5 transition-colors hover:bg-secondary/80">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card shadow-sm">
+              <Smile className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-[15px] font-medium leading-snug text-foreground">
+              {receivedCount > 0
+                ? `${receivedCount}개의 감사가 와있어요`
+                : "이번 주는 받은 감사가 없어요"}
+            </p>
+          </div>
+        </Link>
+
+        {/* Weekly Summary Card — analytical square style */}
+        <div className="rounded-xl border border-[#ece8ea] bg-[#f2f2f3] p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-[#efb8c2]" />
+            <h2 className="text-base font-bold text-[#1f2a3d]">주간 요약</h2>
+          </div>
+          {weeklyData.reduce((a, b) => a + b.count, 0) > 0 ? (
+            <div className="flex items-end gap-2">
+              {weeklyData.map((d) => (
+                <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
+                  <span className="text-[10px] font-bold text-[#efb8c2]">
+                    {d.count > 0 ? d.count : ""}
+                  </span>
+                  <div
+                    className="w-full transition-all"
+                    style={{ height: `${Math.max(d.count * 14, 4)}px` }}
+                  >
+                    <div className={`h-full w-full rounded-sm ${d.count > 0 ? "bg-[#efb8c2]" : "bg-[#efb8c2]/20"}`} />
+                  </div>
+                  <span className="text-[10px] text-[#8d99ac]">{d.day}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  총 {weeklyData.reduce((a, b) => a + b.count, 0)}개
-                </p>
-              </div>
-              {/* 7-day sparkline bar chart */}
-              <div className="flex items-end gap-2">
-                {weeklyData.map((d) => (
-                  <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
-                    <span className="text-[9px] font-bold text-primary">
-                      {d.count > 0 ? d.count : ""}
-                    </span>
-                    <div
-                      className="w-full rounded-t transition-all"
-                      style={{ height: `${Math.max(d.count * 16, 4)}px` }}
-                    >
-                      <div className={`h-full w-full rounded-t ${d.count > 0 ? "bg-primary" : "bg-primary/20"}`} />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{d.day}</span>
+              ))}
+            </div>
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-[#8d99ac]">이번 주 활동이 아직 없어요.</p>
+              <div className="flex gap-2">
+                {["월", "화", "수", "목", "금", "토", "일"].map((d) => (
+                  <div key={d} className="flex flex-1 flex-col items-center gap-1">
+                    <div className="h-1 w-full rounded-sm bg-[#efb8c2]/20" />
+                    <span className="text-[10px] text-[#8d99ac]">{d}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </>
+          )}
+        </div>
 
         {/* Quick Access Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/home/calendar">
-            <Card className="shadow-sm transition-colors hover:bg-muted/50">
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <Calendar className="h-5 w-5 text-primary" />
+        <div className="grid grid-cols-2 gap-2.5">
+          {[
+            { href: "/home/calendar", icon: Calendar, label: "감사 캘린더", sub: "기록 현황" },
+            { href: "/badges", icon: Award, label: "배지", sub: "도전 현황" },
+            { href: "/report", icon: BarChart3, label: "연간 리포트", sub: `${new Date().getFullYear()}년` },
+            { href: "/gratitude-page/create", icon: FileText, label: "감사 페이지", sub: "선물하기" },
+          ].map((item) => (
+            <Link key={item.href} href={item.href}>
+              <div className="rounded-[20px] border border-border/50 bg-card p-3 shadow-sm transition-colors hover:bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-primary/10 p-2">
+                    <item.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.sub}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">감사 캘린더</p>
-                  <p className="text-[10px] text-muted-foreground">기록 현황</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/badges">
-            <Card className="shadow-sm transition-colors hover:bg-muted/50">
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <Award className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">배지</p>
-                  <p className="text-[10px] text-muted-foreground">도전 현황</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/report">
-            <Card className="shadow-sm transition-colors hover:bg-muted/50">
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">연간 리포트</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date().getFullYear()}년</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/gratitude-page/create">
-            <Card className="shadow-sm transition-colors hover:bg-muted/50">
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">감사 페이지</p>
-                  <p className="text-[10px] text-muted-foreground">선물하기</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+              </div>
+            </Link>
+          ))}
         </div>
 
         {/* Recent Letters */}
         <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-bold">최근 편지</h3>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-serif text-xl font-bold">최근 감사</h3>
             <Link href="/records" className="text-sm font-medium text-primary">
               전체 보기
             </Link>
           </div>
           {loading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-6">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : recentLetters.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               {recentLetters.map((letter) => (
-                <Card key={letter.id} className="shadow-sm">
-                  <CardContent className="flex gap-4 p-4">
-                    <Avatar className="h-12 w-12 shrink-0 bg-secondary">
-                      <AvatarFallback className="bg-secondary text-primary">
-                        {letter.name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="mb-1 flex items-start justify-between">
-                        <h4 className="font-bold">{letter.name}</h4>
-                        <span className="text-[10px] text-muted-foreground">
-                          {letter.timeAgo}
-                        </span>
-                      </div>
-                      <p className="mb-2 line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        &ldquo;{letter.content}&rdquo;
-                      </p>
-                      <div className="flex gap-2">
-                        {letter.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="bg-primary/20 text-[10px] font-bold uppercase tracking-wider text-primary"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
+                <Link key={letter.id} href={`/records/${letter.id}`}>
+                  <div className="rounded-[24px] border border-border/50 bg-card p-4 shadow-sm transition-colors hover:bg-muted/30">
+                    <div className="flex gap-3">
+                      <Avatar className="h-11 w-11 shrink-0 bg-secondary">
+                        <AvatarFallback className="bg-secondary text-primary font-serif text-base">
+                          {letter.name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <p className="truncate font-bold">{letter.name}</p>
+                          <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">
+                            {letter.timeAgo}
+                          </span>
+                        </div>
+                        {letter.title && (
+                          <p className="mt-0.5 truncate text-[13px] font-semibold text-foreground/80">
+                            {letter.title}
+                          </p>
+                        )}
+                        <p className="mt-0.5 line-clamp-1 text-[13px] text-muted-foreground">
+                          &ldquo;{letter.content}&rdquo;
+                        </p>
+                        {letter.tags.length > 0 && (
+                          <div className="mt-1.5 flex gap-1.5">
+                            {letter.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </Link>
               ))}
             </div>
           ) : (
-            <Card className="border-0 bg-secondary shadow-none">
-              <CardContent className="py-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  아직 작성한 감사가 없습니다.
-                </p>
-                <Link href="/write">
-                  <Button variant="link" className="mt-2 text-primary">
-                    첫 감사 편지 쓰러 가기
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+            <div className="rounded-[20px] bg-secondary py-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                아직 작성한 감사가 없습니다.
+              </p>
+              <Link href="/write">
+                <Button variant="link" className="mt-1 text-primary">
+                  첫 감사 쓰러 가기
+                </Button>
+              </Link>
+            </div>
           )}
         </section>
 
-        {/* Insights Banner */}
-        <Card className="border-0 bg-secondary shadow-none">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-full bg-card p-2 shadow-sm">
-              <Smile className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-sm font-medium text-foreground">
-              매일 감사를 기록하면, 마음이 따뜻해져요.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Insights Banner — capsule */}
+        <div className="flex items-center gap-3 rounded-full bg-secondary px-5 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card shadow-sm">
+            <Smile className="h-4 w-4 text-primary" strokeWidth={1.5} />
+          </div>
+          <p className="text-[13px] font-medium text-foreground">
+            매일 감사를 기록하면, 마음이 따뜻해져요.
+          </p>
+        </div>
       </div>
     </div>
   );
