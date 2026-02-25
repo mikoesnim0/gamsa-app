@@ -13,7 +13,7 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { friendsCol, friendDoc } from "@/lib/firebase/collections";
+import { friendsCol, friendDoc, usersCol } from "@/lib/firebase/collections";
 import type { Friend } from "@/types";
 
 export async function getFriends(userId: string): Promise<Friend[]> {
@@ -101,4 +101,24 @@ export async function rejectFriendRequest(
   for (const doc of otherSnap.docs) {
     await deleteDoc(doc.ref);
   }
+}
+
+export async function sendFriendRequestByCode(
+  userId: string,
+  inviteCode: string
+): Promise<void> {
+  const q = query(usersCol(), where("inviteCode", "==", inviteCode));
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    throw new Error("Invalid invite code");
+  }
+
+  const friendUserId = snap.docs[0].id;
+
+  if (friendUserId === userId) {
+    throw new Error("Cannot add yourself");
+  }
+
+  await sendFriendRequest(userId, friendUserId);
 }

@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { Search, Copy, Calendar, ArrowLeftRight, ChevronRight, X, Check, QrCode, UserPlus, Loader2 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { Friend } from "@/types";
@@ -17,6 +24,10 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [addFriendOpen, setAddFriendOpen] = useState(false);
+  const [friendCode, setFriendCode] = useState("");
+  const [addingFriend, setAddingFriend] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -45,11 +56,26 @@ export default function FriendsPage() {
   }
 
   function handleQrCode() {
-    toast.info("QR 코드 기능은 준비 중입니다.");
+    setQrOpen(true);
   }
 
   function handleAddFriend() {
-    toast.info("친구 추가 기능은 준비 중입니다.");
+    setAddFriendOpen(true);
+  }
+
+  async function handleSubmitFriendCode() {
+    if (!firebaseUser || !friendCode.trim()) return;
+    setAddingFriend(true);
+    try {
+      await api.friends.sendFriendRequestByCode(firebaseUser.uid, friendCode.trim());
+      toast.success("친구 요청을 보냈습니다!");
+      setFriendCode("");
+      setAddFriendOpen(false);
+    } catch {
+      toast.error("친구 요청에 실패했습니다. 코드를 확인해주세요.");
+    } finally {
+      setAddingFriend(false);
+    }
   }
 
   async function handleAcceptRequest(id: string) {
@@ -267,6 +293,68 @@ export default function FriendsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="max-w-xs rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">내 QR 코드</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="rounded-2xl bg-white p-4">
+              <QRCodeSVG
+                value={`gamsa://invite/${inviteCode}`}
+                size={200}
+                level="M"
+                fgColor="#211113"
+                bgColor="#ffffff"
+              />
+            </div>
+            <p className="text-center text-sm text-muted-foreground">
+              친구가 이 QR 코드를 스캔하면
+              <br />
+              바로 친구 추가가 됩니다.
+            </p>
+            <div className="flex items-center gap-2 rounded-xl bg-muted px-4 py-2">
+              <span className="font-mono text-lg font-bold tracking-wider">
+                {inviteCode}
+              </span>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCopyCode}>
+                <Copy className="h-4 w-4" strokeWidth={1.5} />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Friend Dialog */}
+      <Dialog open={addFriendOpen} onOpenChange={setAddFriendOpen}>
+        <DialogContent className="max-w-xs rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">친구 추가</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-center text-sm text-muted-foreground">
+              친구의 초대 코드를 입력해주세요.
+            </p>
+            <Input
+              placeholder="초대 코드 입력"
+              value={friendCode}
+              onChange={(e) => setFriendCode(e.target.value)}
+              className="rounded-xl text-center text-lg font-mono tracking-wider"
+              maxLength={8}
+            />
+            <Button
+              className="h-12 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground"
+              onClick={handleSubmitFriendCode}
+              disabled={addingFriend || !friendCode.trim()}
+            >
+              {addingFriend && <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.5} />}
+              친구 요청 보내기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

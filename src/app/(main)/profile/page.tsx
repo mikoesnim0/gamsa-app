@@ -26,6 +26,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 
@@ -59,6 +68,10 @@ export default function ProfilePage() {
   const [totalSent, setTotalSent] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -94,6 +107,31 @@ export default function ProfilePage() {
     toast.info("이 기능은 준비 중입니다.");
   }
 
+  function openEditProfile() {
+    setEditName(user?.name ?? "");
+    setEditBio(user?.bio ?? "");
+    setEditOpen(true);
+  }
+
+  async function handleSaveProfile() {
+    if (!firebaseUser) return;
+    setSaving(true);
+    try {
+      await api.auth.updateUserProfile(firebaseUser.uid, {
+        name: editName.trim(),
+        bio: editBio.trim() || null,
+      });
+      toast.success("프로필이 수정되었습니다.");
+      setEditOpen(false);
+      // Reload to reflect changes
+      window.location.reload();
+    } catch {
+      toast.error("프로필 수정에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const displayName = user?.name || "사용자";
   const displayBio = user?.bio || "매일 감사를 기록하는 중";
 
@@ -111,9 +149,9 @@ export default function ProfilePage() {
           variant="ghost"
           size="icon"
           className="rounded-full"
-          onClick={handleComingSoon}
+          onClick={openEditProfile}
         >
-          <Pencil className="h-5 w-5 text-muted-foreground" />
+          <Pencil className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
         </Button>
       </header>
 
@@ -255,11 +293,55 @@ export default function ProfilePage() {
             className="text-sm font-bold text-primary hover:text-primary/80"
             onClick={handleLogout}
           >
-            <LogOut className="mr-2 h-4 w-4" />
+            <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
             로그아웃
           </Button>
         </div>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-xs rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">프로필 수정</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                이름
+              </Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="mt-2 rounded-xl"
+                maxLength={20}
+                placeholder="이름"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                소개
+              </Label>
+              <Textarea
+                value={editBio}
+                onChange={(e) => setEditBio(e.target.value)}
+                className="mt-2 resize-none rounded-xl"
+                maxLength={100}
+                rows={3}
+                placeholder="한 줄 소개를 입력하세요"
+              />
+            </div>
+            <Button
+              className="h-12 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground"
+              onClick={handleSaveProfile}
+              disabled={saving || !editName.trim()}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.5} />}
+              저장
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
