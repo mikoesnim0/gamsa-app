@@ -121,6 +121,9 @@ const EN: Record<string, string> = {
   home_view_all: "View All",
   home_no_entries_yet: "No gratitude notes yet.",
   home_write_first: "Write Your First Gratitude",
+  home_letters_label: "Letters",
+  home_weekly_top_emotion: "This week's top emotion is",
+  home_weekly_summary_count: "You wrote {count} letters this week.",
   home_insight_banner: "Recording gratitude daily warms the heart.",
 
   // ── Write ──
@@ -482,6 +485,9 @@ const KO: Record<string, string> = {
   home_view_all: "전체 보기",
   home_no_entries_yet: "아직 작성한 감사가 없습니다.",
   home_write_first: "첫 감사 쓰러 가기",
+  home_letters_label: "통의 편지",
+  home_weekly_top_emotion: "이번 주 가장 많이 느낀 감정은",
+  home_weekly_summary_count: "이번 주 {count}통의 편지를 쓰셨어요.",
   home_insight_banner: "매일 감사를 기록하면, 마음이 따뜻해져요.",
 
   // ── Write ──

@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Bell, PenLine, CalendarDays, Award, BarChart3, Calendar, FileText, Smile, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n-context";
@@ -22,8 +19,6 @@ const EMOTION_KEYS: Record<string, string> = {
   trust: "emotion_trust",
   hope: "emotion_hope",
 };
-
-const DAY_KEYS = ["day_mon", "day_tue", "day_wed", "day_thu", "day_fri", "day_sat", "day_sun"];
 
 export default function HomePage() {
   const { firebaseUser } = useAuth();
@@ -76,7 +71,22 @@ export default function HomePage() {
     return map;
   }, [targets]);
 
-  const weeklyData = useMemo(() => {
+  const weeklyText = useMemo(() => {
+    const total = entries.filter((e) => {
+      const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.createdAt as unknown as string);
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(now);
+      monday.setHours(0, 0, 0, 0);
+      monday.setDate(monday.getDate() + mondayOffset);
+      return d >= monday;
+    }).length;
+    if (total === 0) return t("home_no_weekly_activity");
+    return t("home_weekly_summary_count", { count: total });
+  }, [entries, t]);
+
+  const weeklyBars = useMemo(() => {
     const now = new Date();
     const dayOfWeek = now.getDay();
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -92,11 +102,21 @@ export default function HomePage() {
         counts[idx]++;
       }
     }
-    return DAY_KEYS.map((key, i) => ({
-      dayKey: key,
-      count: counts[i],
-    }));
+    const max = Math.max(...counts, 1);
+    return counts.map((c) => c / max);
   }, [entries]);
+
+  const weeklyTopEmotion = useMemo(() => {
+    const emotionCounts: Record<string, number> = {};
+    for (const entry of entries) {
+      for (const tag of entry.emotionTags) {
+        emotionCounts[tag] = (emotionCounts[tag] || 0) + 1;
+      }
+    }
+    const sorted = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) return null;
+    return t(EMOTION_KEYS[sorted[0][0]] ?? sorted[0][0]);
+  }, [entries, t]);
 
   const recentLetters = useMemo(() => {
     return entries.slice(0, 5).map((entry) => {
@@ -113,226 +133,235 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, targetNames, t]);
 
-  const dailyGoal = 3;
-  const progress = Math.min(todayCount / dailyGoal, 1);
+  const letterCount = entries.length;
+  const sentCount = todayCount;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col">
-      {/* Top Navigation Bar */}
-      <header className="screen-safe-top sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-5 py-4 backdrop-blur-md">
-        <div />
-        <h1 className="text-center font-serif text-[30px] font-bold italic leading-none tracking-tight text-primary">
-          Gratella
-        </h1>
-        <Link href="/notifications">
-          <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-primary/20">
-            <Bell className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+    <main className="screen-safe-top min-h-screen bg-[#f8f6f6] text-[#1d2b44]">
+      <div className="content-safe-bottom mx-auto w-full max-w-[620px] px-6 pt-6">
+
+        {/* ── Header ── */}
+        <header className="mb-7 flex items-center justify-between">
+          <span className="h-10 w-10" />
+          <h1 className="font-serif text-[34px] font-bold italic leading-none tracking-[-1px] text-[#f0b7c4]">
+            Today
+          </h1>
+          <Link
+            href="/notifications"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full"
+          >
+            <span className="material-symbols-outlined text-[34px] text-[#2f3f57]">
+              notifications
+            </span>
             {hasUnread && (
               <>
-                <span className="absolute right-[6px] top-[4px] h-3.5 w-3.5 rounded-full bg-primary/45 animate-ping" />
-                <span className="absolute right-[8px] top-[6px] h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+                <span className="absolute right-[6px] top-[4px] h-3.5 w-3.5 rounded-full bg-[#f0b7c4]/45 animate-ping" />
+                <span className="absolute right-[8px] top-[6px] h-2.5 w-2.5 rounded-full bg-[#f0b7c4] animate-pulse" />
               </>
             )}
-          </Button>
-        </Link>
-      </header>
+          </Link>
+        </header>
 
-      <div className="space-y-6 px-4 pb-8">
-        {/* Today's Record Card */}
-        <div className="rounded-[28px] border border-primary/10 bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-start justify-between">
+        {/* ── Section 1: Today's Record ── */}
+        <section className="mb-8 rounded-[54px] border border-[#ececec] bg-white p-8 shadow-[0_2px_0_rgba(0,0,0,0.03)]">
+          <div className="mb-5 flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-bold">{t("home_todays_record")}</h2>
-              <p className="text-sm text-muted-foreground">
-                {t("home_sent_count", { count: todayCount })} / {t("home_received_count", { count: 0 })}
+              <h2 className="font-serif text-[30px] font-bold leading-none tracking-[-0.8px] text-[#141f35]">
+                {t("home_todays_record")}
+              </h2>
+              <p className="mt-2 text-[16px] text-[#5f7392]">
+                {sentCount} {t("home_sent_count", { count: sentCount })} / {receivedCount} {t("home_received_count", { count: receivedCount })}
               </p>
             </div>
-            <Link href="/write">
-              <div className="rounded-full bg-secondary p-2">
-                <PenLine className="h-5 w-5 text-primary" />
-              </div>
+            <Link
+              href="/write"
+              className="mt-1 flex h-16 w-16 items-center justify-center rounded-full bg-[#f7efe6]"
+            >
+              <span className="material-symbols-outlined text-[28px] text-[#f0b7c4]">
+                edit_note
+              </span>
             </Link>
           </div>
-          <div className="flex items-center gap-5 rounded-[20px] bg-secondary p-3">
-            <div className="relative flex shrink-0 items-center justify-center">
-              <svg width="70" height="70" viewBox="0 0 70 70">
-                <circle cx="35" cy="35" r="29" fill="none" stroke="currentColor" strokeWidth="5" className="text-primary/20" />
-                <circle cx="35" cy="35" r="29" fill="none" stroke="currentColor" strokeWidth="5" className="text-primary" strokeLinecap="round" strokeDasharray={`${progress * 182.2} 182.2`} transform="rotate(-90 35 35)" />
-              </svg>
-              <span className="absolute text-base font-bold text-primary">
-                {todayCount}/{dailyGoal}
+
+          {/* Letter Count Gradient Card */}
+          <Link
+            href="/records"
+            className="flex h-[150px] w-full items-center justify-center rounded-[38px]"
+            style={{
+              background: "linear-gradient(90deg, #d79284 0%, #e2c3ac 52%, #e5e8db 100%)",
+            }}
+          >
+            <span className="font-serif text-[38px] font-bold italic leading-none text-[#efc4cc]">
+              {letterCount} {t("home_letters_label")}
+            </span>
+          </Link>
+        </section>
+
+        {/* ── Section 2: Weekly Emotion Summary ── */}
+        <section className="mb-9 rounded-[44px] bg-[#f7efe6] p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
+              <span className="material-symbols-outlined text-[31px] text-[#eeb8c3]">
+                sentiment_satisfied
               </span>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <p className="font-serif text-2xl font-bold text-foreground">{todayCount}</p>
-              <p className="text-xs text-muted-foreground">{t("home_todays_gratitude")}</p>
-              {todayCount >= dailyGoal ? (
-                <p className="text-[10px] text-primary">{t("home_daily_goal_achieved")}</p>
-              ) : (
-                <p className="text-[10px] text-muted-foreground">
-                  {t("home_daily_goal_remaining", { remaining: dailyGoal - todayCount })}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Received Letters Summary */}
-        <Link href="/records?tab=received">
-          <div className="flex items-center gap-4 rounded-full bg-secondary px-5 py-3.5 transition-colors hover:bg-secondary/80">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card shadow-sm">
-              <Smile className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-[15px] font-medium leading-snug text-foreground">
-              {receivedCount > 0
-                ? t("home_received_message", { count: receivedCount })
+            <p className="font-serif text-[21px] leading-[1.35] text-[#1d2b44]">
+              {weeklyTopEmotion
+                ? `${t("home_weekly_top_emotion")} "${weeklyTopEmotion}".`
                 : t("home_no_received_this_week")}
             </p>
           </div>
-        </Link>
+        </section>
 
-        {/* Weekly Summary Card */}
-        <div className="rounded-xl border border-[#ece8ea] bg-[#f2f2f3] p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-[#efb8c2]" />
-            <h2 className="text-base font-bold text-[#1f2a3d]">{t("home_weekly_summary")}</h2>
-          </div>
-          {weeklyData.reduce((a, b) => a + b.count, 0) > 0 ? (
-            <div className="flex items-end gap-2">
-              {weeklyData.map((d) => (
-                <div key={d.dayKey} className="flex flex-1 flex-col items-center gap-1">
-                  <span className="text-[10px] font-bold text-[#efb8c2]">
-                    {d.count > 0 ? d.count : ""}
-                  </span>
-                  <div
-                    className="w-full transition-all"
-                    style={{ height: `${Math.max(d.count * 14, 4)}px` }}
-                  >
-                    <div className={`h-full w-full rounded-sm ${d.count > 0 ? "bg-[#efb8c2]" : "bg-[#efb8c2]/20"}`} />
-                  </div>
-                  <span className="text-[10px] text-[#8d99ac]">{t(d.dayKey)}</span>
-                </div>
-              ))}
+        {/* ── Section 3: Weekly Summary ── */}
+        <section className="mb-9 rounded-[54px] border border-[#f0dce1] bg-[#f9f6f7] p-8">
+          <div className="mb-5 flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <i className="h-7 w-2 rounded-full bg-[#f0b7c4]" />
+              <i className="h-7 w-2 rounded-full bg-[#f0b7c4]" />
+              <i className="h-7 w-2 rounded-full bg-[#f0b7c4]" />
             </div>
-          ) : (
-            <>
-              <p className="mb-3 text-sm text-[#8d99ac]">{t("home_no_weekly_activity")}</p>
-              <div className="flex gap-2">
-                {DAY_KEYS.map((key) => (
-                  <div key={key} className="flex flex-1 flex-col items-center gap-1">
-                    <div className="h-1 w-full rounded-sm bg-[#efb8c2]/20" />
-                    <span className="text-[10px] text-[#8d99ac]">{t(key)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+            <h3 className="font-serif text-[30px] font-bold leading-none tracking-[-0.8px] text-[#141f35]">
+              {t("home_weekly_summary")}
+            </h3>
+          </div>
+          <p className="text-[24px] leading-[1.45] text-[#334a69]">
+            {weeklyText}
+          </p>
+          <div className="mt-6 grid grid-cols-5 gap-3">
+            {weeklyBars.slice(0, 5).map((v, i) => (
+              <div
+                key={i}
+                className="h-1.5 rounded-full"
+                style={{
+                  backgroundColor:
+                    v > 0
+                      ? `rgba(240, 183, 196, ${0.35 + 0.65 * v})`
+                      : "#ead8dd",
+                }}
+              />
+            ))}
+          </div>
+        </section>
 
-        {/* Quick Access Grid */}
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* ── Section 4: Quick Access Grid ── */}
+        <section className="mb-9 grid grid-cols-2 gap-3">
           {[
-            { href: "/home/calendar", icon: Calendar, labelKey: "home_gratitude_calendar", subKey: "home_record_status" },
-            { href: "/badges", icon: Award, labelKey: "home_badges", subKey: "home_challenge_status" },
-            { href: "/report", icon: BarChart3, labelKey: "home_annual_report", sub: t("home_year_label", { year: new Date().getFullYear() }) },
-            { href: "/gratitude-page/create", icon: FileText, labelKey: "home_gratitude_page", subKey: "home_gift" },
+            { href: "/home/calendar", icon: "calendar_month", labelKey: "home_gratitude_calendar", subKey: "home_record_status" },
+            { href: "/badges", icon: "military_tech", labelKey: "home_badges", subKey: "home_challenge_status" },
+            { href: "/report", icon: "bar_chart", labelKey: "home_annual_report", sub: t("home_year_label", { year: new Date().getFullYear() }) },
+            { href: "/gratitude-page/create", icon: "redeem", labelKey: "home_gratitude_page", subKey: "home_gift" },
           ].map((item) => (
             <Link key={item.href} href={item.href}>
-              <div className="rounded-[20px] border border-border/50 bg-card p-3 shadow-sm transition-colors hover:bg-muted/50">
+              <div className="rounded-[28px] border border-[#eceff3] bg-white p-4 shadow-[0_2px_0_rgba(0,0,0,0.03)] transition-colors hover:bg-[#f7efe6]/30">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <item.icon className="h-4 w-4 text-primary" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f7efe6]">
+                    <span className="material-symbols-outlined text-[20px] text-[#eeb8c3]">
+                      {item.icon}
+                    </span>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold">{t(item.labelKey)}</p>
-                    <p className="text-[10px] text-muted-foreground">{item.sub ?? t(item.subKey!)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-bold text-[#141f35]">{t(item.labelKey)}</p>
+                    <p className="text-[11px] text-[#8d99ac]">{item.sub ?? t(item.subKey!)}</p>
                   </div>
                 </div>
               </div>
             </Link>
           ))}
-        </div>
+        </section>
 
-        {/* Recent Letters */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-serif text-xl font-bold">{t("home_recent_gratitude")}</h3>
-            <Link href="/records" className="text-sm font-medium text-primary">
+        {/* ── Section 5: Recent Letters ── */}
+        <section className="mb-8">
+          <div className="mb-4 flex items-end justify-between">
+            <h3 className="font-serif text-[30px] font-bold leading-none tracking-[-0.7px] text-[#141f35]">
+              {t("home_recent_gratitude")}
+            </h3>
+            <Link
+              href="/records"
+              className="text-[17px] font-semibold text-[#f0b7c4]"
+            >
               {t("home_view_all")}
             </Link>
           </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : recentLetters.length > 0 ? (
-            <div className="space-y-5">
-              {recentLetters.map((letter, idx) => (
-                <Link key={letter.id} href={`/records/${letter.id}`}>
-                  <div className="rounded-[28px] border border-[#eceff3] bg-card px-4 py-4 shadow-[0_2px_0_rgba(0,0,0,0.03)] transition-colors hover:bg-muted/30">
-                    <div className="flex gap-3.5">
-                      <Avatar className={cn(
-                        "h-12 w-12 shrink-0",
-                      )}>
-                        <AvatarFallback className={cn(
-                          "font-serif text-base",
-                          idx === 0
-                            ? "bg-[#f7efe6] text-primary"
-                            : "bg-secondary text-[#a9b6c8]"
-                        )}>
-                          {letter.name[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2">
-                          <h4 className="truncate font-serif text-[17px] font-bold leading-none">{letter.name}</h4>
-                          {letter.title && (
-                            <p className="truncate text-[14px] text-foreground/70">{letter.title}</p>
-                          )}
-                        </div>
-                        <p className="mt-1.5 line-clamp-2 text-[13px] leading-[1.5] text-muted-foreground">
-                          {letter.content}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
-                        <span className="text-[12px] text-muted-foreground">
+
+          <div className="space-y-5">
+            {recentLetters.length === 0 ? (
+              <div className="rounded-[26px] bg-[#f2f2f3] px-4 py-5 text-[15px] text-[#8d99ac]">
+                {t("home_no_entries_yet")}
+              </div>
+            ) : (
+              recentLetters.map((letter, idx) => (
+                <Link
+                  key={letter.id}
+                  href={`/records/${letter.id}`}
+                  className="block rounded-[54px] border border-[#eceff3] bg-white p-6 shadow-[0_2px_0_rgba(0,0,0,0.03)]"
+                >
+                  <div className="flex gap-5">
+                    <div
+                      className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full ${
+                        idx === 0 ? "bg-[#f7efe6]" : "bg-[#eff2f6]"
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[34px] ${
+                          idx === 0 ? "text-[#eeb8c3]" : "text-[#a9b6c8]"
+                        }`}
+                      >
+                        person
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-start justify-between gap-3">
+                        <h4 className="truncate font-serif text-[22px] font-bold leading-none tracking-[-0.5px] text-[#141f35]">
+                          {letter.name}
+                        </h4>
+                        <span className="shrink-0 pt-1 text-[14px] text-[#98a8bf]">
                           {letter.timeAgo}
                         </span>
-                        {letter.tags.length > 0 && (
-                          <span className="rounded-full bg-[#f7efe6] px-2.5 py-0.5 text-[10px] font-semibold text-[#7386a4]">
-                            {letter.tags[0]}
-                          </span>
-                        )}
                       </div>
+                      <p className="line-clamp-2 text-[15px] leading-[1.45] text-[#5d7291]">
+                        {letter.content}
+                      </p>
+                      {letter.tags.length > 0 && (
+                        <div className="mt-3 flex gap-3">
+                          {letter.tags.slice(0, 2).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-[#f7efe6] px-4 py-1.5 font-serif text-[12px] font-bold uppercase tracking-[1.2px] text-[#7386a4]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-[20px] bg-secondary py-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {t("home_no_entries_yet")}
-              </p>
-              <Link href="/write">
-                <Button variant="link" className="mt-1 text-primary">
-                  {t("home_write_first")}
-                </Button>
-              </Link>
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </section>
 
-        {/* Insights Banner */}
-        <div className="flex items-center gap-3 rounded-full bg-secondary px-5 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card shadow-sm">
-            <Smile className="h-4 w-4 text-primary" strokeWidth={1.5} />
+        {/* ── Insights Banner ── */}
+        <div className="mb-6 flex items-center gap-3 rounded-full bg-[#f7efe6] px-5 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+            <span className="material-symbols-outlined text-[18px] text-[#eeb8c3]">
+              sentiment_satisfied
+            </span>
           </div>
-          <p className="text-[13px] font-medium text-foreground">
+          <p className="text-[13px] font-medium text-[#1d2b44]">
             {t("home_insight_banner")}
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -8,7 +8,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[620px] flex-col">
       <AuthGate>
         <AndroidBackHandler />
         <main className="flex-1 pb-24">{children}</main>

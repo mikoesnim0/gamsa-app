@@ -60,7 +60,7 @@ export function BottomNav() {
 
   return (
     <nav className="nav-safe-bottom fixed bottom-0 left-0 right-0 z-[160] border-t border-[#ece8ec] bg-[#f8f6f6] px-6 pt-2">
-      <div className="mx-auto flex max-w-md items-end justify-between">
+      <div className="mx-auto flex max-w-[620px] items-end justify-between">
         {/* Left tabs */}
         {LEFT_ITEMS.map((item) => (
           <NavTab

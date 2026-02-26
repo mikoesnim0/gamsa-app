@@ -13,7 +13,6 @@ import {
   User,
   Loader2,
   X,
-  Globe,
   Check,
 } from "lucide-react";
 import Image from "next/image";
@@ -359,52 +358,57 @@ export default function ProfilePage() {
 
         {/* Settings Section — Language */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{t("profile_section_settings")}</p>
-          <div className="rounded-2xl border border-primary/10 bg-white p-2 space-y-1">
+          <p className="mb-3 px-1 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_language")}</p>
+          <div className="relative rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2">
             <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-[#efb8c2]">
+                translate
+              </span>
               <button
                 type="button"
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5"
+                className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] py-3.5 pl-10 pr-9 text-left text-sm font-semibold text-[#2f3f57]"
               >
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-[#334255]">{t("profile_language")}</span>
-                </div>
-                <span className="rounded-full bg-[#fef3f6] px-3 py-1 text-sm text-[#7d8aa0]">{currentLangNative}</span>
+                <span>{currentLangNative}</span>
               </button>
-
-              {langMenuOpen && (
-                <>
-                  <button
-                    type="button"
-                    className="fixed inset-0 z-20"
-                    onClick={() => setLangMenuOpen(false)}
-                  />
-                  <div className="absolute left-2 right-2 top-[64px] z-30 overflow-auto rounded-2xl border border-primary/10 bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.12)]">
-                    {LANGUAGE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.code}
-                        type="button"
-                        onClick={() => {
-                          setLang(opt.code);
-                          setLangMenuOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm",
-                          lang === opt.code ? "bg-[#fff3f6] text-[#2f3f57] font-medium" : "text-[#60718a]"
-                        )}
-                      >
-                        {opt.native}
-                        {lang === opt.code && (
-                          <Check className="h-4 w-4 text-[#efb8c2]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-[#a0afc4]">
+                {langMenuOpen ? "expand_less" : "expand_more"}
+              </span>
             </div>
+
+            {langMenuOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-label="close language menu"
+                  className="fixed inset-0 z-20 bg-transparent"
+                  onClick={() => setLangMenuOpen(false)}
+                />
+                <div className="absolute left-2 right-2 top-[64px] z-30 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                  {LANGUAGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      onClick={() => {
+                        setLang(opt.code);
+                        setLangMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px]",
+                        lang === opt.code ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
+                      )}
+                    >
+                      <span>{opt.native}</span>
+                      {lang === opt.code && (
+                        <span className="material-symbols-outlined text-[16px] text-[#efb8c2]">
+                          check
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </section>
 
