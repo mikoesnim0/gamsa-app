@@ -307,14 +307,14 @@ export default function FriendsPage() {
           <button
             type="button"
             onClick={() => setActiveTab("friends")}
-            className={cn("w-1/2 pb-2", activeTab === "friends" ? "text-foreground" : "")}
+            className={cn("w-1/2 pb-2 border-b-2", activeTab === "friends" ? "text-foreground border-primary" : "border-transparent")}
           >
             {t("friends_tab_friends")}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("requests")}
-            className={cn("w-1/2 pb-2", activeTab === "requests" ? "text-foreground" : "")}
+            className={cn("w-1/2 pb-2 border-b-2", activeTab === "requests" ? "text-foreground border-primary" : "border-transparent")}
           >
             {t("friends_tab_requests")}
             {pendingRequests.length > 0 && (

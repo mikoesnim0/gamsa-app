@@ -193,7 +193,7 @@ export default function ProfilePage() {
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-6 w-10 rounded-full transition-colors",
-          checked ? "bg-green-500" : "bg-slate-200"
+          checked ? "bg-primary" : "bg-slate-200"
         )}
       >
         <span
@@ -270,9 +270,9 @@ export default function ProfilePage() {
 
         {/* Notification Settings */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_notifications")}</p>
-          <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
-            <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
+          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{t("profile_section_notifications")}</p>
+          <div className="rounded-2xl border border-primary/10 bg-white p-2 space-y-1">
+            <div className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5">
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
                 <span className="text-sm font-medium text-[#334255]">{t("profile_notif_new_letter")}</span>
@@ -283,7 +283,7 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
+            <div className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5">
               <div className="flex items-center gap-3">
                 <Megaphone className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
                 <span className="text-sm font-medium text-[#334255]">{t("profile_notif_marketing")}</span>
@@ -294,7 +294,7 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
+            <div className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5">
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
                 <span className="text-sm font-medium text-[#334255]">{t("profile_notif_delivery")}</span>
@@ -311,7 +311,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => deliveryOptIn && setReminderDropdownOpen(!reminderDropdownOpen)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5",
+                  "flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5",
                   !deliveryOptIn && "opacity-45 cursor-not-allowed"
                 )}
               >
@@ -329,7 +329,7 @@ export default function ProfilePage() {
                     className="fixed inset-0 z-20"
                     onClick={() => setReminderDropdownOpen(false)}
                   />
-                  <div className="absolute left-2 right-2 top-[64px] z-30 max-h-56 overflow-auto rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                  <div className="absolute left-2 right-2 top-[64px] z-30 max-h-56 overflow-auto rounded-2xl border border-primary/10 bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.12)]">
                     {REMINDER_TIMES.map((time) => (
                       <button
                         key={time}
@@ -359,13 +359,13 @@ export default function ProfilePage() {
 
         {/* Settings Section — Language */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_settings")}</p>
-          <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
+          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{t("profile_section_settings")}</p>
+          <div className="rounded-2xl border border-primary/10 bg-white p-2 space-y-1">
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
+                className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5"
               >
                 <div className="flex items-center gap-3">
                   <Globe className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
@@ -381,7 +381,7 @@ export default function ProfilePage() {
                     className="fixed inset-0 z-20"
                     onClick={() => setLangMenuOpen(false)}
                   />
-                  <div className="absolute left-2 right-2 top-[64px] z-30 overflow-auto rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                  <div className="absolute left-2 right-2 top-[64px] z-30 overflow-auto rounded-2xl border border-primary/10 bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.12)]">
                     {LANGUAGE_OPTIONS.map((opt) => (
                       <button
                         key={opt.code}
@@ -410,12 +410,12 @@ export default function ProfilePage() {
 
         {/* Security Section */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_security")}</p>
-          <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
+          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{t("profile_section_security")}</p>
+          <div className="rounded-2xl border border-primary/10 bg-white p-2 space-y-1">
             <button
               type="button"
               onClick={() => toast.info(t("profile_info_link_soon"))}
-              className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
+              className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5"
             >
               <div className="flex items-center gap-3">
                 <Link2 className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
@@ -427,7 +427,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={openBlockList}
-              className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
+              className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5"
             >
               <div className="flex items-center gap-3">
                 <Shield className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
@@ -442,7 +442,7 @@ export default function ProfilePage() {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-[#f1d6de] py-3 text-sm font-medium text-[#8d99ac] transition-colors hover:bg-[#fff3f6]"
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/10 py-3 text-sm font-medium text-slate-400 transition-colors hover:bg-[#fff3f6]"
         >
           <LogOut className="h-4 w-4" strokeWidth={1.5} />
           {t("profile_logout")}
