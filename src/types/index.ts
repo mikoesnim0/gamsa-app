@@ -27,6 +27,8 @@ export interface UserProfile {
   bio: string | null;
   inviteCode: string;
   stats: UserStats;
+  hasPhone: boolean;
+  hasKakao: boolean;
 }
 
 export interface UserStats {

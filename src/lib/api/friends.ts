@@ -13,8 +13,8 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { friendsCol, friendDoc, usersCol } from "@/lib/firebase/collections";
-import type { Friend } from "@/types";
+import { friendsCol, friendDoc, usersCol, userDoc } from "@/lib/firebase/collections";
+import type { Friend, UserProfile } from "@/types";
 
 export interface PhoneMatchResult {
   userId: string;
@@ -29,10 +29,36 @@ export async function getFriends(userId: string): Promise<Friend[]> {
     orderBy("createdAt", "desc")
   );
   const snap = await getDocs(q);
-  return snap.docs.map((doc) => ({
+  const friends = snap.docs.map((doc) => ({
     ...doc.data(),
     id: doc.id,
   })) as Friend[];
+
+  // 각 친구의 프로필 로드
+  const enriched = await Promise.all(
+    friends.map(async (friend) => {
+      try {
+        const profileSnap = await getDoc(userDoc(friend.friendUserId));
+        if (profileSnap.exists()) {
+          const data = profileSnap.data() as Record<string, unknown>;
+          const profile: UserProfile = {
+            id: profileSnap.id,
+            name: (data.name as string) ?? "",
+            profileImg: (data.profileImg as string) ?? null,
+            bio: (data.bio as string) ?? null,
+            inviteCode: (data.inviteCode as string) ?? "",
+            stats: { totalSent: 0, totalReceived: 0, streakDays: 0 },
+            hasPhone: !!(data.phoneHash),
+            hasKakao: !!(data.kakaoId),
+          };
+          return { ...friend, friendProfile: profile };
+        }
+      } catch { /* skip */ }
+      return friend;
+    })
+  );
+
+  return enriched;
 }
 
 export async function getPendingRequests(userId: string): Promise<Friend[]> {

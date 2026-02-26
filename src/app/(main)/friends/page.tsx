@@ -431,7 +431,8 @@ export default function FriendsPage() {
                 {filteredFriends.map((friend) => {
                   const name = friend.friendProfile?.name ?? friend.friendUserId;
                   const bio = friend.friendProfile?.bio ?? "";
-                  const hasPhone = !!friend.friendProfile?.stats; // placeholder
+                  const hasPhone = friend.friendProfile?.hasPhone ?? false;
+                  const hasKakao = friend.friendProfile?.hasKakao ?? false;
                   return (
                     <article key={friend.id} className="rounded-[24px] bg-muted px-3 py-3">
                       <div className="flex items-start gap-3">
@@ -445,9 +446,21 @@ export default function FriendsPage() {
                             <p className="truncate font-serif text-[20px] font-bold leading-none">
                               {name}
                             </p>
-                            {/* Linked icons */}
-                            <Phone className="h-3.5 w-3.5 text-muted-foreground/50" strokeWidth={1.5} />
-                            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground/50" strokeWidth={1.5} />
+                            {/* Linked icons — active when connected */}
+                            <Phone
+                              className={cn(
+                                "h-3.5 w-3.5",
+                                hasPhone ? "text-[#efb8c2]" : "text-muted-foreground/30"
+                              )}
+                              strokeWidth={1.5}
+                            />
+                            <MessageCircle
+                              className={cn(
+                                "h-3.5 w-3.5",
+                                hasKakao ? "text-[#FAE100]" : "text-muted-foreground/30"
+                              )}
+                              strokeWidth={1.5}
+                            />
                           </div>
                           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             @{friend.friendUserId.slice(0, 8)}
