@@ -156,9 +156,7 @@ export default function WritePage() {
 
   function toggleEmotion(emotion: EmotionTag) {
     setSelectedEmotions((prev) =>
-      prev.includes(emotion)
-        ? prev.filter((e) => e !== emotion)
-        : [...prev, emotion]
+      prev.includes(emotion) ? [] : [emotion]
     );
   }
 
