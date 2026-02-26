@@ -103,13 +103,60 @@ export interface Streak {
 
 // ─── Badge (감사패) ─────────────────────────────────────
 
-export type BadgeType = "7d" | "30d" | "100d" | "365d";
+export type BadgeCategory =
+  | "streak"
+  | "sent_count"
+  | "emotion"
+  | "social"
+  | "time_of_day"
+  | "special";
+
+export type BadgeType =
+  // Streak
+  | "streak_7d"
+  | "streak_30d"
+  | "streak_100d"
+  | "streak_365d"
+  // Sent count
+  | "sent_10"
+  | "sent_50"
+  | "sent_100"
+  // Emotion variety
+  | "emotion_3"
+  | "emotion_all"
+  // Social
+  | "friend_1"
+  | "friend_5"
+  | "target_5"
+  // Time of day
+  | "morning_writer"
+  | "night_writer"
+  // Special
+  | "first_entry"
+  | "devoted_target"
+  | "photo_lover";
+
+export interface BadgeMetadata {
+  triggerValue?: number;
+  triggerTargetId?: string;
+}
 
 export interface Badge {
   id: string;
   userId: string;
   type: BadgeType;
   earnedAt: Timestamp;
+  metadata?: BadgeMetadata | null;
+}
+
+export interface BadgeDefinition {
+  type: BadgeType;
+  category: BadgeCategory;
+  nameKey: string;
+  descKey: string;
+  iconName: string;
+  target: number | null;
+  order: number;
 }
 
 // ─── Gratitude Page (990원 상품) ─────────────────────────

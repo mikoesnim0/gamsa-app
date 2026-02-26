@@ -16,6 +16,7 @@ import * as friends from "./friends";
 import * as streak from "./streak";
 import * as blocked from "./blocked";
 import * as share from "./share";
+import * as badges from "./badges";
 
 export const api = {
   gratitude,
@@ -26,4 +27,5 @@ export const api = {
   streak,
   blocked,
   share,
+  badges,
 } as const;

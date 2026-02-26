@@ -302,6 +302,16 @@ export default function WritePage() {
         isPublic: delivery !== "private_vault",
       });
       await api.streak.checkAndUpdateStreak(firebaseUser.uid);
+
+      // Check & award badges
+      try {
+        const { newBadges } = await api.badges.checkAndAwardBadges(firebaseUser.uid);
+        for (const badge of newBadges) {
+          const def = (await import("@/lib/badges/definitions")).getBadgeDefinition(badge.type);
+          if (def) toast.success(t("badge_toast_earned", { name: t(def.nameKey) }));
+        }
+      } catch { /* badge check is non-blocking */ }
+
       toast.success(t("write_toast_sent"));
       router.push("/home");
     } catch (err) {

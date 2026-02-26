@@ -108,6 +108,15 @@ export default function FriendsPage() {
       toast.success(t("friends_toast_accepted"));
       const updatedFriends = await api.friends.getFriends(firebaseUser.uid);
       setFriends(updatedFriends);
+
+      // Check & award badges (friend-related)
+      try {
+        const { newBadges } = await api.badges.checkAndAwardBadges(firebaseUser.uid);
+        for (const badge of newBadges) {
+          const def = (await import("@/lib/badges/definitions")).getBadgeDefinition(badge.type);
+          if (def) toast.success(t("badge_toast_earned", { name: t(def.nameKey) }));
+        }
+      } catch { /* badge check is non-blocking */ }
     } catch {
       toast.error(t("friends_error_process"));
     }

@@ -56,6 +56,8 @@ export const streakDoc = (userId: string) =>
 
 export const badgesCol = (userId: string) =>
   typedCollection<Badge>(`users/${userId}/badges`);
+export const badgeDoc = (userId: string, badgeId: string) =>
+  typedDoc<Badge>(`users/${userId}/badges`, badgeId);
 
 export const pagesCol = () => typedCollection<GratitudePage>("gratitude_pages");
 export const pageDoc = (id: string) =>
