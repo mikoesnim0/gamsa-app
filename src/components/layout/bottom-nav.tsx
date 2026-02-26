@@ -29,7 +29,7 @@ function NavTab({ item, isActive }: { item: NavItem; isActive: boolean }) {
     <Link
       href={item.href}
       className={cn(
-        "flex min-w-[56px] flex-col items-center gap-1 py-2 transition-colors",
+        "flex min-w-[56px] flex-col items-center gap-0.5 py-1 transition-colors",
         isActive ? "text-[#efb8c2]" : "text-[#8fa1ba]"
       )}
     >
@@ -59,7 +59,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="nav-safe-bottom fixed bottom-0 left-0 right-0 z-[160] border-t border-[#ece8ec] bg-[#f8f6f6] px-6 pt-2">
+    <nav className="nav-safe-bottom fixed bottom-0 left-0 right-0 z-[160] border-t border-[#ece8ec] bg-[#f8f6f6] px-6 pt-1">
       <div className="mx-auto flex max-w-[620px] items-end justify-between">
         {/* Left tabs */}
         {LEFT_ITEMS.map((item) => (

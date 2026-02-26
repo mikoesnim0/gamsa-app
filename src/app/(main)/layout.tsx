@@ -11,7 +11,7 @@ export default function MainLayout({
     <div className="mx-auto flex min-h-[100dvh] max-w-[620px] flex-col">
       <AuthGate>
         <AndroidBackHandler />
-        <main className="flex-1 pb-24">{children}</main>
+        <main className="flex-1 pb-20">{children}</main>
         <BottomNav />
       </AuthGate>
     </div>
