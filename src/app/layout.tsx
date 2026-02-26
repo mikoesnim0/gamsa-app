@@ -1,23 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n-context";
 import "./globals.css";
-
-const notoSansKr = Noto_Sans_KR({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const notoSerifKr = Noto_Serif_KR({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Gratella — 매일 감사를 기록하고, 마음을 전하세요",
@@ -56,11 +41,15 @@ export default function RootLayout({
       <head>
         <link
           rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap"
+        />
+        <link
+          rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
         />
       </head>
       <body
-        className={`${notoSansKr.variable} ${notoSerifKr.variable} font-sans antialiased`}
+        className="font-sans antialiased"
       >
         <I18nProvider>
           <AuthProvider>

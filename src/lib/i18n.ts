@@ -6,7 +6,7 @@
  * - Fallback chain: specific lang → English → key
  */
 
-export type LangCode = "ko" | "en" | "ja" | "zh" | "es";
+export type LangCode = "ko" | "en" | "ja" | "zh" | "es" | "pt" | "fr" | "de" | "ar" | "hi";
 
 export const LANGUAGE_OPTIONS: Array<{ code: LangCode; native: string }> = [
   { code: "ko", native: "한국어" },
@@ -14,6 +14,11 @@ export const LANGUAGE_OPTIONS: Array<{ code: LangCode; native: string }> = [
   { code: "ja", native: "日本語" },
   { code: "zh", native: "简体中文" },
   { code: "es", native: "Español" },
+  { code: "pt", native: "Português" },
+  { code: "fr", native: "Français" },
+  { code: "de", native: "Deutsch" },
+  { code: "ar", native: "العربية" },
+  { code: "hi", native: "हिन्दी" },
 ];
 
 /* ---------- English (base / fallback) ---------- */
@@ -850,6 +855,706 @@ const ES: Record<string, string> = {
   profile_logout: "Cerrar sesión",
 };
 
+/* ---------- Portuguese ---------- */
+
+const PT: Record<string, string> = {
+  // ── Nav ──
+  nav_home: "Início",
+  nav_records: "Registros",
+  nav_friends: "Amigos",
+  nav_profile: "Eu",
+  nav_write_gratitude: "Escrever",
+
+  // ── Common ──
+  common_cancel: "Cancelar",
+  common_reset: "Redefinir",
+  common_apply: "Aplicar",
+  common_save: "Salvar",
+  common_close: "Fechar",
+  common_copy: "Copiar",
+  common_add: "Adicionar",
+  common_go_home: "Ir para início",
+  common_all: "Tudo",
+  common_loading: "Carregando...",
+  common_brand: "Nota de Gratidão",
+
+  // ── Emotions ──
+  emotion_gratitude: "Gratidão",
+  emotion_comfort: "Conforto",
+  emotion_respect: "Respeito",
+  emotion_love: "Amor",
+  emotion_warmth: "Acolhimento",
+  emotion_joy: "Alegria",
+  emotion_trust: "Confiança",
+  emotion_hope: "Esperança",
+
+  // ── Time ──
+  time_just_now: "Agora",
+  time_hours_ago: "há {count} h",
+  time_days_ago: "há {count} d",
+
+  // ── Welcome ──
+  welcome_headline: "Vamos compartilhar\num coração hoje?",
+  welcome_subtitle: "Uma palavra acolhedora para alguém especial,\ncomece agora.",
+
+  // ── Home ──
+  home_todays_record: "Registro de hoje",
+  home_weekly_summary: "Resumo semanal",
+  home_no_received_this_week: "Esta semana você não recebeu cartas",
+  home_no_weekly_activity: "Ainda não há atividade nesta semana.",
+  home_recent_gratitude: "Cartas recentes",
+  home_view_all: "Ver tudo",
+
+  // ── Write ──
+  write_to_someone: "PARA ALGUÉM ESPECIAL",
+  write_how_feeling: "Como você se sente?",
+  write_title_section: "Título",
+  write_message_section: "Sua mensagem",
+  write_photo_section: "Anexar foto",
+  write_delivery_section: "Opções de envio",
+  write_placeholder_search: "Buscar amigo...",
+  write_placeholder_title: "Um pequeno bilhete de agradecimento...",
+  write_placeholder_message: "Escreva uma mensagem...",
+  write_select_image: "Escolher imagem",
+  write_send_button: "Enviar gratidão",
+  write_delivery_send_now: "Enviar agora",
+  write_delivery_schedule: "Agendar envio",
+  write_delivery_private: "Salvar no cofre privado",
+  write_schedule_title: "DATA E HORA",
+  write_schedule_time: "Hora",
+  write_crop_title: "Recortar foto (1:1)",
+  write_crop_zoom: "Zoom",
+  write_empty_target_hint: "Escolha um amigo e escreva uma mensagem.",
+  write_error_send_failed: "Falha ao enviar.",
+  write_toast_sent: "Enviado.",
+
+  // ── Notifications ──
+  notif_title: "Notificações",
+  notif_empty: "Sem notificações.",
+  notif_toast_accepted: "Solicitação aceita",
+  notif_toast_rejected: "Solicitação rejeitada",
+  notif_error_failed: "Falha na solicitação",
+
+  // ── Records ──
+  records_title: "Registros e estatísticas",
+  records_tab_total: "Total",
+  records_tab_sent: "Total enviadas",
+  records_tab_received: "Total recebidas",
+  records_stats_sent: "Total enviadas",
+  records_stats_received: "Total recebidas",
+  records_emotion_ratio: "Proporção das emoções",
+  records_filter_recent: "Data: recentes",
+  records_filter_oldest: "Data: antigas",
+  records_filter_this_week: "Esta semana",
+  records_filter_this_month: "Este mês",
+  records_filter_this_year: "Este ano",
+  records_empty_none: "Ainda não há registros.",
+
+  // ── Friends ──
+  friends_title: "Comunidade",
+  friends_tab_requests: "Solicitações",
+  friends_placeholder_search: "Encontrar um amigo...",
+  friends_invite_code: "SEU CÓDIGO DE CONVITE",
+  friends_action_write: "Escrever carta",
+  friends_send_request: "Enviar solicitação",
+  friends_empty: "Nenhum amigo encontrado.",
+  friends_requests_empty: "Sem solicitações pendentes.",
+  friends_qr_save: "Salvar imagem",
+  friends_toast_accepted: "Solicitação aceita",
+  friends_toast_rejected: "Solicitação rejeitada",
+  friends_error_request: "Falha na solicitação",
+  friends_error_process: "Falha na solicitação",
+
+  // ── Profile ──
+  profile_title: "Meu perfil",
+  profile_status_active: "ATIVO AGORA",
+  profile_section_notifications: "Alertas",
+  profile_notif_new_letter: "Consentimento de nova carta",
+  profile_notif_marketing: "Consentimento de marketing",
+  profile_notif_delivery: "Consentimento de lembrete",
+  profile_section_settings: "Configurações",
+  profile_language: "Idioma",
+  profile_section_security: "Segurança",
+  profile_security_link: "Vinculação de conta",
+  profile_security_block: "Lista de bloqueio",
+  profile_logout: "Sair",
+  profile_edit_title: "Editar perfil",
+  profile_edit_photo: "Foto de perfil",
+  profile_edit_upload: "Enviar foto",
+  profile_edit_nickname: "Apelido",
+  profile_edit_nickname_ph: "Digite apelido",
+  profile_edit_status: "Mensagem de status",
+  profile_edit_status_ph: "Digite mensagem de status",
+  profile_block_title: "Lista de bloqueio",
+  profile_block_ph: "Digite o usuário para bloquear",
+  profile_block_remove: "Remover",
+  profile_block_empty: "Nenhum usuário bloqueado.",
+  profile_toast_blocked: "Usuário bloqueado adicionado.",
+  profile_toast_unblocked: "Usuário desbloqueado.",
+  profile_error_block: "Falha ao gerenciar bloqueio.",
+  profile_notif_reminder_time: "Hora do lembrete diário",
+};
+
+/* ---------- French ---------- */
+
+const FR: Record<string, string> = {
+  // ── Nav ──
+  nav_home: "Accueil",
+  nav_records: "Historique",
+  nav_friends: "Amis",
+  nav_profile: "Moi",
+  nav_write_gratitude: "Écrire",
+
+  // ── Common ──
+  common_cancel: "Annuler",
+  common_reset: "Réinitialiser",
+  common_apply: "Appliquer",
+  common_save: "Enregistrer",
+  common_close: "Fermer",
+  common_copy: "Copier",
+  common_add: "Ajouter",
+  common_go_home: "Aller à l'accueil",
+  common_all: "Tout",
+  common_loading: "Chargement...",
+  common_brand: "Note de Gratitude",
+
+  // ── Emotions ──
+  emotion_gratitude: "Gratitude",
+  emotion_comfort: "Réconfort",
+  emotion_respect: "Respect",
+  emotion_love: "Amour",
+  emotion_warmth: "Chaleur",
+  emotion_joy: "Joie",
+  emotion_trust: "Confiance",
+  emotion_hope: "Espoir",
+
+  // ── Time ──
+  time_just_now: "À l'instant",
+  time_hours_ago: "il y a {count} h",
+  time_days_ago: "il y a {count} j",
+
+  // ── Welcome ──
+  welcome_headline: "Partageons\nun cœur aujourd'hui ?",
+  welcome_subtitle: "Un mot chaleureux pour quelqu'un de précieux,\ncommencez maintenant.",
+
+  // ── Home ──
+  home_todays_record: "Journal du jour",
+  home_weekly_summary: "Résumé hebdomadaire",
+  home_no_received_this_week: "Aucune lettre reçue cette semaine",
+  home_no_weekly_activity: "Aucune activité cette semaine.",
+  home_recent_gratitude: "Lettres récentes",
+  home_view_all: "Voir tout",
+
+  // ── Write ──
+  write_to_someone: "À QUELQU'UN DE SPÉCIAL",
+  write_how_feeling: "Comment vous sentez-vous ?",
+  write_title_section: "Titre",
+  write_message_section: "Votre message",
+  write_photo_section: "Ajouter une photo",
+  write_delivery_section: "Options d'envoi",
+  write_placeholder_search: "Rechercher un ami...",
+  write_placeholder_title: "Une petite note de remerciement...",
+  write_placeholder_message: "Écrivez un message...",
+  write_select_image: "Choisir une image",
+  write_send_button: "Envoyer la gratitude",
+  write_delivery_send_now: "Envoyer maintenant",
+  write_delivery_schedule: "Programmer l'envoi",
+  write_delivery_private: "Enregistrer dans le coffre privé",
+  write_schedule_title: "DATE & HEURE",
+  write_schedule_time: "Heure",
+  write_crop_title: "Rogner la photo (1:1)",
+  write_crop_zoom: "Zoom",
+  write_empty_target_hint: "Choisissez un ami et écrivez un message.",
+  write_error_send_failed: "Échec de l'envoi.",
+  write_toast_sent: "Envoyé.",
+
+  // ── Notifications ──
+  notif_title: "Notifications",
+  notif_empty: "Aucune notification.",
+  notif_toast_accepted: "Demande acceptée",
+  notif_toast_rejected: "Demande rejetée",
+  notif_error_failed: "Échec de la demande",
+
+  // ── Records ──
+  records_title: "Historique et statistiques",
+  records_tab_total: "Total",
+  records_tab_sent: "Total envoyées",
+  records_tab_received: "Total reçues",
+  records_stats_sent: "Total envoyées",
+  records_stats_received: "Total reçues",
+  records_emotion_ratio: "Répartition des émotions",
+  records_filter_recent: "Date: récentes",
+  records_filter_oldest: "Date: anciennes",
+  records_filter_this_week: "Cette semaine",
+  records_filter_this_month: "Ce mois-ci",
+  records_filter_this_year: "Cette année",
+  records_empty_none: "Aucun enregistrement.",
+
+  // ── Friends ──
+  friends_title: "Communauté",
+  friends_tab_requests: "Demandes",
+  friends_placeholder_search: "Trouver un ami...",
+  friends_invite_code: "VOTRE CODE D'INVITATION",
+  friends_action_write: "Écrire une lettre",
+  friends_send_request: "Envoyer une demande",
+  friends_empty: "Aucun ami trouvé.",
+  friends_requests_empty: "Aucune demande en attente.",
+  friends_qr_save: "Enregistrer l'image",
+  friends_toast_accepted: "Demande acceptée",
+  friends_toast_rejected: "Demande rejetée",
+  friends_error_request: "Échec de la demande",
+  friends_error_process: "Échec de la demande",
+
+  // ── Profile ──
+  profile_title: "Mon profil",
+  profile_status_active: "ACTIF",
+  profile_section_notifications: "Alertes",
+  profile_notif_new_letter: "Consentement nouvelle lettre",
+  profile_notif_marketing: "Consentement marketing",
+  profile_notif_delivery: "Consentement rappel d'envoi",
+  profile_section_settings: "Paramètres",
+  profile_language: "Langue",
+  profile_section_security: "Sécurité",
+  profile_security_link: "Liaison de compte",
+  profile_security_block: "Liste de blocage",
+  profile_logout: "Déconnexion",
+  profile_edit_title: "Modifier le profil",
+  profile_edit_photo: "Photo de profil",
+  profile_edit_upload: "Téléverser une photo",
+  profile_edit_nickname: "Pseudo",
+  profile_edit_nickname_ph: "Saisissez un pseudo",
+  profile_edit_status: "Message de statut",
+  profile_edit_status_ph: "Saisissez un message",
+  profile_block_title: "Liste de blocage",
+  profile_block_ph: "Entrez le nom à bloquer",
+  profile_block_remove: "Supprimer",
+  profile_block_empty: "Aucun utilisateur bloqué.",
+  profile_toast_blocked: "Utilisateur bloqué ajouté.",
+  profile_toast_unblocked: "Utilisateur débloqué.",
+  profile_error_block: "Échec de gestion du blocage.",
+  profile_notif_reminder_time: "Heure du rappel quotidien",
+};
+
+/* ---------- German ---------- */
+
+const DE: Record<string, string> = {
+  // ── Nav ──
+  nav_home: "Start",
+  nav_records: "Verlauf",
+  nav_friends: "Freunde",
+  nav_profile: "Ich",
+  nav_write_gratitude: "Schreiben",
+
+  // ── Common ──
+  common_cancel: "Abbrechen",
+  common_reset: "Zurücksetzen",
+  common_apply: "Anwenden",
+  common_save: "Speichern",
+  common_close: "Schließen",
+  common_copy: "Kopieren",
+  common_add: "Hinzufügen",
+  common_go_home: "Zur Startseite",
+  common_all: "Alle",
+  common_loading: "Wird geladen...",
+  common_brand: "Dankbarkeitsnotiz",
+
+  // ── Emotions ──
+  emotion_gratitude: "Dankbarkeit",
+  emotion_comfort: "Trost",
+  emotion_respect: "Respekt",
+  emotion_love: "Liebe",
+  emotion_warmth: "Wärme",
+  emotion_joy: "Freude",
+  emotion_trust: "Vertrauen",
+  emotion_hope: "Hoffnung",
+
+  // ── Time ──
+  time_just_now: "Gerade eben",
+  time_hours_ago: "vor {count} Std.",
+  time_days_ago: "vor {count} Tg.",
+
+  // ── Welcome ──
+  welcome_headline: "Teilen wir heute\nein Herz?",
+  welcome_subtitle: "Ein warmes Wort für einen besonderen Menschen,\njetzt starten.",
+
+  // ── Home ──
+  home_todays_record: "Heutiger Eintrag",
+  home_weekly_summary: "Wochenübersicht",
+  home_no_received_this_week: "Diese Woche hast du keine Briefe erhalten",
+  home_no_weekly_activity: "Diese Woche noch keine Aktivität.",
+  home_recent_gratitude: "Letzte Briefe",
+  home_view_all: "Alle anzeigen",
+
+  // ── Write ──
+  write_to_someone: "AN EINE BESONDERE PERSON",
+  write_how_feeling: "Wie fühlst du dich?",
+  write_title_section: "Titel",
+  write_message_section: "Deine Nachricht",
+  write_photo_section: "Foto anhängen",
+  write_delivery_section: "Sendeoptionen",
+  write_placeholder_search: "Freund suchen...",
+  write_placeholder_title: "Eine kleine Dankesnotiz...",
+  write_placeholder_message: "Schreibe eine Nachricht...",
+  write_select_image: "Bild auswählen",
+  write_send_button: "Dank senden",
+  write_delivery_send_now: "Jetzt senden",
+  write_delivery_schedule: "Senden planen",
+  write_delivery_private: "Im privaten Tresor speichern",
+  write_schedule_title: "DATUM & UHRZEIT",
+  write_schedule_time: "Stunde",
+  write_crop_title: "Foto zuschneiden (1:1)",
+  write_crop_zoom: "Zoom",
+  write_empty_target_hint: "Bitte Freund wählen und Nachricht schreiben.",
+  write_error_send_failed: "Senden fehlgeschlagen.",
+  write_toast_sent: "Gesendet.",
+
+  // ── Notifications ──
+  notif_title: "Benachrichtigungen",
+  notif_empty: "Keine Benachrichtigungen.",
+  notif_toast_accepted: "Anfrage angenommen",
+  notif_toast_rejected: "Anfrage abgelehnt",
+  notif_error_failed: "Anfrage fehlgeschlagen",
+
+  // ── Records ──
+  records_title: "Verlauf und Statistik",
+  records_tab_total: "Gesamt",
+  records_tab_sent: "Gesamt gesendet",
+  records_tab_received: "Gesamt empfangen",
+  records_stats_sent: "Gesamt gesendet",
+  records_stats_received: "Gesamt empfangen",
+  records_emotion_ratio: "Emotionsverteilung",
+  records_filter_recent: "Datum: neueste",
+  records_filter_oldest: "Datum: älteste",
+  records_filter_this_week: "Diese Woche",
+  records_filter_this_month: "Diesen Monat",
+  records_filter_this_year: "Dieses Jahr",
+  records_empty_none: "Noch keine Einträge.",
+
+  // ── Friends ──
+  friends_title: "Community",
+  friends_tab_requests: "Anfragen",
+  friends_placeholder_search: "Freund finden...",
+  friends_invite_code: "DEIN EINLADUNGSCODE",
+  friends_action_write: "Brief schreiben",
+  friends_send_request: "Anfrage senden",
+  friends_empty: "Keine Freunde gefunden.",
+  friends_requests_empty: "Keine ausstehenden Anfragen.",
+  friends_qr_save: "Bild speichern",
+  friends_toast_accepted: "Anfrage angenommen",
+  friends_toast_rejected: "Anfrage abgelehnt",
+  friends_error_request: "Anfrage fehlgeschlagen",
+  friends_error_process: "Anfrage fehlgeschlagen",
+
+  // ── Profile ──
+  profile_title: "Mein Profil",
+  profile_status_active: "AKTIV",
+  profile_section_notifications: "Hinweise",
+  profile_notif_new_letter: "Einwilligung neue Briefe",
+  profile_notif_marketing: "Marketing-Einwilligung",
+  profile_notif_delivery: "Einwilligung Versand-Erinnerung",
+  profile_section_settings: "Einstellungen",
+  profile_language: "Sprache",
+  profile_section_security: "Sicherheit",
+  profile_security_link: "Kontoverknüpfung",
+  profile_security_block: "Blockierliste",
+  profile_logout: "Abmelden",
+  profile_edit_title: "Profil bearbeiten",
+  profile_edit_photo: "Profilfoto",
+  profile_edit_upload: "Foto hochladen",
+  profile_edit_nickname: "Spitzname",
+  profile_edit_nickname_ph: "Spitzname eingeben",
+  profile_edit_status: "Statusmeldung",
+  profile_edit_status_ph: "Statusmeldung eingeben",
+  profile_block_title: "Blockierliste",
+  profile_block_ph: "Namen zum Blockieren eingeben",
+  profile_block_remove: "Entfernen",
+  profile_block_empty: "Keine blockierten Nutzer.",
+  profile_toast_blocked: "Blockierter Nutzer hinzugefügt.",
+  profile_toast_unblocked: "Blockierung aufgehoben.",
+  profile_error_block: "Blockieren fehlgeschlagen.",
+  profile_notif_reminder_time: "Tägliche Erinnerungszeit",
+};
+
+/* ---------- Arabic ---------- */
+
+const AR: Record<string, string> = {
+  // ── Nav ──
+  nav_home: "الرئيسية",
+  nav_records: "السجل",
+  nav_friends: "الأصدقاء",
+  nav_profile: "أنا",
+  nav_write_gratitude: "اكتب",
+
+  // ── Common ──
+  common_cancel: "إلغاء",
+  common_reset: "إعادة تعيين",
+  common_apply: "تطبيق",
+  common_save: "حفظ",
+  common_close: "إغلاق",
+  common_copy: "نسخ",
+  common_add: "إضافة",
+  common_go_home: "العودة للرئيسية",
+  common_all: "الكل",
+  common_loading: "جارٍ التحميل...",
+  common_brand: "ملاحظة امتنان",
+
+  // ── Emotions ──
+  emotion_gratitude: "امتنان",
+  emotion_comfort: "طمأنينة",
+  emotion_respect: "احترام",
+  emotion_love: "حب",
+  emotion_warmth: "دفء",
+  emotion_joy: "فرح",
+  emotion_trust: "ثقة",
+  emotion_hope: "أمل",
+
+  // ── Time ──
+  time_just_now: "الآن",
+  time_hours_ago: "قبل {count} س",
+  time_days_ago: "قبل {count} ي",
+
+  // ── Welcome ──
+  welcome_headline: "هل نشارك\nقلبًا اليوم؟",
+  welcome_subtitle: "كلمة دافئة لشخص ثمين،\nابدأ الآن.",
+
+  // ── Home ──
+  home_todays_record: "سجل اليوم",
+  home_weekly_summary: "ملخص الأسبوع",
+  home_no_received_this_week: "لم تصلك أي رسائل هذا الأسبوع",
+  home_no_weekly_activity: "لا يوجد نشاط هذا الأسبوع بعد.",
+  home_recent_gratitude: "الرسائل الأخيرة",
+  home_view_all: "عرض الكل",
+
+  // ── Write ──
+  write_to_someone: "إلى شخص مميز",
+  write_how_feeling: "كيف تشعر؟",
+  write_title_section: "عنوان الرسالة",
+  write_message_section: "رسالتك",
+  write_photo_section: "إرفاق صورة",
+  write_delivery_section: "خيارات الإرسال",
+  write_placeholder_search: "ابحث عن صديق...",
+  write_placeholder_title: "ملاحظة شكر صغيرة...",
+  write_placeholder_message: "اكتب رسالة...",
+  write_select_image: "اختر صورة",
+  write_send_button: "إرسال الامتنان",
+  write_delivery_send_now: "إرسال الآن",
+  write_delivery_schedule: "جدولة الإرسال",
+  write_delivery_private: "الحفظ في الخزنة الخاصة",
+  write_schedule_title: "التاريخ والوقت",
+  write_schedule_time: "الساعة",
+  write_crop_title: "قص الصورة (1:1)",
+  write_crop_zoom: "تكبير",
+  write_empty_target_hint: "اختر صديقًا واكتب رسالة.",
+  write_error_send_failed: "فشل الإرسال.",
+  write_toast_sent: "تم الإرسال.",
+
+  // ── Notifications ──
+  notif_title: "الإشعارات",
+  notif_empty: "لا توجد إشعارات.",
+  notif_toast_accepted: "تم قبول الطلب",
+  notif_toast_rejected: "تم رفض الطلب",
+  notif_error_failed: "فشل الطلب",
+
+  // ── Records ──
+  records_title: "السجلات والإحصائيات",
+  records_tab_total: "الإجمالي",
+  records_tab_sent: "إجمالي المرسل",
+  records_tab_received: "إجمالي المستلم",
+  records_stats_sent: "إجمالي المرسل",
+  records_stats_received: "إجمالي المستلم",
+  records_emotion_ratio: "نِسَب المشاعر",
+  records_filter_recent: "التاريخ: الأحدث",
+  records_filter_oldest: "التاريخ: الأقدم",
+  records_filter_this_week: "هذا الأسبوع",
+  records_filter_this_month: "هذا الشهر",
+  records_filter_this_year: "هذا العام",
+  records_empty_none: "لا توجد سجلات بعد.",
+
+  // ── Friends ──
+  friends_title: "المجتمع",
+  friends_tab_requests: "الطلبات",
+  friends_placeholder_search: "ابحث عن صديق...",
+  friends_invite_code: "رمز دعوتك",
+  friends_action_write: "اكتب رسالة",
+  friends_send_request: "إرسال طلب صداقة",
+  friends_empty: "لم يتم العثور على أصدقاء.",
+  friends_requests_empty: "لا توجد طلبات معلقة.",
+  friends_qr_save: "حفظ الصورة",
+  friends_toast_accepted: "تم قبول الطلب",
+  friends_toast_rejected: "تم رفض الطلب",
+  friends_error_request: "فشل الطلب",
+  friends_error_process: "فشل الطلب",
+
+  // ── Profile ──
+  profile_title: "ملفي الشخصي",
+  profile_status_active: "متصل الآن",
+  profile_section_notifications: "تنبيهات",
+  profile_notif_new_letter: "الموافقة على الرسائل الجديدة",
+  profile_notif_marketing: "الموافقة على التسويق",
+  profile_notif_delivery: "الموافقة على تذكير الإرسال",
+  profile_section_settings: "إعدادات",
+  profile_language: "اللغة",
+  profile_section_security: "الأمان",
+  profile_security_link: "ربط الحساب",
+  profile_security_block: "قائمة الحظر",
+  profile_logout: "تسجيل الخروج",
+  profile_edit_title: "تعديل الملف",
+  profile_edit_photo: "صورة الملف الشخصي",
+  profile_edit_upload: "رفع صورة",
+  profile_edit_nickname: "الاسم المستعار",
+  profile_edit_nickname_ph: "أدخل الاسم المستعار",
+  profile_edit_status: "رسالة الحالة",
+  profile_edit_status_ph: "أدخل رسالة الحالة",
+  profile_block_title: "قائمة الحظر",
+  profile_block_ph: "أدخل اسم المستخدم للحظر",
+  profile_block_remove: "إزالة",
+  profile_block_empty: "لا يوجد مستخدمون محظورون.",
+  profile_toast_blocked: "تمت إضافة المستخدم إلى الحظر.",
+  profile_toast_unblocked: "تم إلغاء الحظر.",
+  profile_error_block: "فشل إجراء الحظر.",
+  profile_notif_reminder_time: "وقت التذكير اليومي",
+};
+
+/* ---------- Hindi ---------- */
+
+const HI: Record<string, string> = {
+  // ── Nav ──
+  nav_home: "होम",
+  nav_records: "रिकॉर्ड",
+  nav_friends: "दोस्त",
+  nav_profile: "मैं",
+  nav_write_gratitude: "लिखें",
+
+  // ── Common ──
+  common_cancel: "रद्द करें",
+  common_reset: "रीसेट",
+  common_apply: "लागू करें",
+  common_save: "सहेजें",
+  common_close: "बंद करें",
+  common_copy: "कॉपी",
+  common_add: "जोड़ें",
+  common_go_home: "होम जाएँ",
+  common_all: "सभी",
+  common_loading: "लोड हो रहा है...",
+  common_brand: "आभार नोट",
+
+  // ── Emotions ──
+  emotion_gratitude: "आभार",
+  emotion_comfort: "सुकून",
+  emotion_respect: "सम्मान",
+  emotion_love: "प्रेम",
+  emotion_warmth: "गरमाहट",
+  emotion_joy: "खुशी",
+  emotion_trust: "विश्वास",
+  emotion_hope: "आशा",
+
+  // ── Time ──
+  time_just_now: "अभी",
+  time_hours_ago: "{count} घंटे पहले",
+  time_days_ago: "{count} दिन पहले",
+
+  // ── Welcome ──
+  welcome_headline: "क्या आज\nदिल साझा करें?",
+  welcome_subtitle: "किसी खास के लिए एक गर्मजोशी भरा संदेश,\nअभी शुरू करें।",
+
+  // ── Home ──
+  home_todays_record: "आज का रिकॉर्ड",
+  home_weekly_summary: "साप्ताहिक सारांश",
+  home_no_received_this_week: "इस सप्ताह आपको कोई पत्र नहीं मिला",
+  home_no_weekly_activity: "इस सप्ताह अभी कोई गतिविधि नहीं है।",
+  home_recent_gratitude: "हाल के पत्र",
+  home_view_all: "सभी देखें",
+
+  // ── Write ──
+  write_to_someone: "किसी खास के लिए",
+  write_how_feeling: "आप कैसा महसूस कर रहे हैं?",
+  write_title_section: "पत्र शीर्षक",
+  write_message_section: "आपका संदेश",
+  write_photo_section: "फ़ोटो जोड़ें",
+  write_delivery_section: "भेजने के विकल्प",
+  write_placeholder_search: "दोस्त खोजें...",
+  write_placeholder_title: "धन्यवाद का एक छोटा नोट...",
+  write_placeholder_message: "एक संदेश लिखें...",
+  write_select_image: "छवि चुनें",
+  write_send_button: "आभार भेजें",
+  write_delivery_send_now: "अभी भेजें",
+  write_delivery_schedule: "शेड्यूल भेजना",
+  write_delivery_private: "निजी वॉल्ट में सहेजें",
+  write_schedule_title: "तारीख और समय",
+  write_schedule_time: "घंटा",
+  write_crop_title: "फ़ोटो काटें (1:1)",
+  write_crop_zoom: "ज़ूम",
+  write_empty_target_hint: "कृपया दोस्त चुनें और संदेश लिखें।",
+  write_error_send_failed: "भेजना विफल रहा।",
+  write_toast_sent: "भेज दिया गया।",
+
+  // ── Notifications ──
+  notif_title: "सूचनाएँ",
+  notif_empty: "कोई सूचना नहीं।",
+  notif_toast_accepted: "अनुरोध स्वीकार किया गया",
+  notif_toast_rejected: "अनुरोध अस्वीकार किया गया",
+  notif_error_failed: "अनुरोध विफल",
+
+  // ── Records ──
+  records_title: "रिकॉर्ड और आँकड़े",
+  records_tab_total: "कुल",
+  records_tab_sent: "कुल भेजे गए",
+  records_tab_received: "कुल प्राप्त",
+  records_stats_sent: "कुल भेजे गए",
+  records_stats_received: "कुल प्राप्त",
+  records_emotion_ratio: "भावनात्मक अनुपात",
+  records_filter_recent: "तारीख: नवीनतम",
+  records_filter_oldest: "तारीख: पुराना",
+  records_filter_this_week: "इस सप्ताह",
+  records_filter_this_month: "इस महीने",
+  records_filter_this_year: "इस वर्ष",
+  records_empty_none: "अभी कोई रिकॉर्ड नहीं।",
+
+  // ── Friends ──
+  friends_title: "समुदाय",
+  friends_tab_requests: "अनुरोध",
+  friends_placeholder_search: "दोस्त खोजें...",
+  friends_invite_code: "आपका आमंत्रण कोड",
+  friends_action_write: "पत्र लिखें",
+  friends_send_request: "मित्र अनुरोध भेजें",
+  friends_empty: "कोई दोस्त नहीं मिला।",
+  friends_requests_empty: "कोई लंबित अनुरोध नहीं।",
+  friends_qr_save: "चित्र सहेजें",
+  friends_toast_accepted: "अनुरोध स्वीकार किया गया",
+  friends_toast_rejected: "अनुरोध अस्वीकार किया गया",
+  friends_error_request: "अनुरोध विफल",
+  friends_error_process: "अनुरोध विफल",
+
+  // ── Profile ──
+  profile_title: "मेरा प्रोफ़ाइल",
+  profile_status_active: "अभी सक्रिय",
+  profile_section_notifications: "अलर्ट",
+  profile_notif_new_letter: "नई चिट्ठी प्राप्ति सहमति",
+  profile_notif_marketing: "मार्केटिंग सहमति",
+  profile_notif_delivery: "डिलीवरी रिमाइंडर सहमति",
+  profile_section_settings: "सेटिंग्स",
+  profile_language: "भाषा",
+  profile_section_security: "सुरक्षा",
+  profile_security_link: "खाता लिंकिंग",
+  profile_security_block: "ब्लॉक सूची",
+  profile_logout: "लॉग आउट",
+  profile_edit_title: "प्रोफ़ाइल संपादित करें",
+  profile_edit_photo: "प्रोफ़ाइल फ़ोटो",
+  profile_edit_upload: "फ़ोटो अपलोड करें",
+  profile_edit_nickname: "निकनेम",
+  profile_edit_nickname_ph: "निकनेम दर्ज करें",
+  profile_edit_status: "स्थिति संदेश",
+  profile_edit_status_ph: "स्थिति संदेश दर्ज करें",
+  profile_block_title: "ब्लॉक सूची",
+  profile_block_ph: "ब्लॉक करने के लिए नाम लिखें",
+  profile_block_remove: "हटाएँ",
+  profile_block_empty: "कोई ब्लॉक उपयोगकर्ता नहीं।",
+  profile_toast_blocked: "ब्लॉक उपयोगकर्ता जोड़ा गया।",
+  profile_toast_unblocked: "ब्लॉक हटाया गया।",
+  profile_error_block: "ब्लॉक कार्रवाई विफल।",
+  profile_notif_reminder_time: "दैनिक रिमाइंडर समय",
+};
+
 /* ---------- Dictionary ---------- */
 
 const DICT: Record<LangCode, Record<string, string>> = {
@@ -858,6 +1563,11 @@ const DICT: Record<LangCode, Record<string, string>> = {
   ja: { ...EN, ...JA },
   zh: { ...EN, ...ZH },
   es: { ...EN, ...ES },
+  pt: { ...EN, ...PT },
+  fr: { ...EN, ...FR },
+  de: { ...EN, ...DE },
+  ar: { ...EN, ...AR },
+  hi: { ...EN, ...HI },
 };
 
 /* ---------- API ---------- */
@@ -877,6 +1587,11 @@ export function coerceLanguage(input?: string | null): LangCode {
     japanese: "ja", "日本語": "ja",
     chinese: "zh", "简体中文": "zh", "中文": "zh",
     spanish: "es", "español": "es",
+    portuguese: "pt", "português": "pt",
+    french: "fr", "français": "fr",
+    german: "de", "deutsch": "de",
+    arabic: "ar", "العربية": "ar",
+    hindi: "hi", "हिन्दी": "hi",
   };
 
   return nameMap[lower] ?? "ko";

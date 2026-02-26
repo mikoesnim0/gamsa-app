@@ -110,9 +110,9 @@
   --sidebar-border: oklch(0.929 0.013 255.5);
   --sidebar-ring: oklch(0.860 0.061 10.8);
 
-  /* Custom: font families */
-  --font-sans: "Noto Sans KR", "Noto Sans", sans-serif;
-  --font-serif: "Noto Serif KR", "Noto Serif", serif;
+  /* Custom: font families — matches "from" project (non-KR variants) */
+  --font-sans: "Noto Sans", sans-serif;
+  --font-serif: "Noto Serif", serif;
 }
 
 .dark {
