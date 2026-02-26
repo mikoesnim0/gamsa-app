@@ -5,10 +5,7 @@ const config: CapacitorConfig = {
   appName: '감사노트',
   webDir: 'out',
   server: {
-    // 개발 시: 로컬 서버 사용
-    // url: 'http://localhost:3000',
-    // 배포 후: Vercel URL로 변경
-    // url: 'https://gamsa-app.vercel.app',
+    url: 'https://gamsa-app.vercel.app',
     androidScheme: 'https',
   },
 };
