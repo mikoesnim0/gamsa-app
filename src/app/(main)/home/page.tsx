@@ -236,18 +236,23 @@ export default function HomePage() {
           <p className="text-[24px] leading-[1.45] text-[#334a69]">
             {weeklyText}
           </p>
-          <div className="mt-6 grid grid-cols-5 gap-3">
-            {weeklyBars.slice(0, 5).map((v, i) => (
-              <div
-                key={i}
-                className="h-1.5 rounded-full"
-                style={{
-                  backgroundColor:
-                    v > 0
-                      ? `rgba(240, 183, 196, ${0.35 + 0.65 * v})`
-                      : "#ead8dd",
-                }}
-              />
+          <div className="mt-6 flex items-end gap-2" style={{ height: 64 }}>
+            {weeklyBars.slice(0, 7).map((v, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className="w-full rounded-full"
+                  style={{
+                    height: Math.max(6, v * 48),
+                    backgroundColor:
+                      v > 0
+                        ? `rgba(240, 183, 196, ${0.4 + 0.6 * v})`
+                        : "#ead8dd",
+                  }}
+                />
+                <span className="text-[10px] text-[#9aa7ba]">
+                  {["M", "T", "W", "T", "F", "S", "S"][i]}
+                </span>
+              </div>
             ))}
           </div>
         </section>
