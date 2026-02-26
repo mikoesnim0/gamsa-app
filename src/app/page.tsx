@@ -79,8 +79,30 @@ export default function WelcomePage() {
     }
   }
 
-  function handleComingSoon() {
-    toast.info(t("welcome_info_coming_soon"));
+  const [socialLoading, setSocialLoading] = useState<"kakao" | "apple" | null>(null);
+
+  async function handleKakaoLogin() {
+    setSocialLoading("kakao");
+    try {
+      await api.auth.signInWithKakao();
+    } catch (err) {
+      console.error("Kakao login error:", err);
+      toast.error(t("welcome_error_social_login"));
+    } finally {
+      setSocialLoading(null);
+    }
+  }
+
+  async function handleAppleLogin() {
+    setSocialLoading("apple");
+    try {
+      await api.auth.signInWithApple();
+    } catch (err) {
+      console.error("Apple login error:", err);
+      toast.error(t("welcome_error_social_login"));
+    } finally {
+      setSocialLoading(null);
+    }
   }
 
   if (authLoading) {
@@ -129,9 +151,14 @@ export default function WelcomePage() {
 
               <Button
                 className="h-14 w-full rounded-2xl bg-[#FEE500] text-[#191919] shadow-sm hover:bg-[#FDD835]"
-                onClick={handleComingSoon}
+                onClick={handleKakaoLogin}
+                disabled={socialLoading !== null}
               >
-                <MessageCircle className="mr-3 h-6 w-6" />
+                {socialLoading === "kakao" ? (
+                  <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                ) : (
+                  <MessageCircle className="mr-3 h-6 w-6" />
+                )}
                 <span className="text-base font-bold">
                   {t("welcome_login_kakao")}
                 </span>
@@ -140,11 +167,16 @@ export default function WelcomePage() {
               <Button
                 variant="outline"
                 className="h-14 w-full rounded-2xl border-border bg-card shadow-sm"
-                onClick={handleComingSoon}
+                onClick={handleAppleLogin}
+                disabled={socialLoading !== null}
               >
-                <svg className="mr-3 h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-1.55 4.18-3.74 4.25z"/>
-                </svg>
+                {socialLoading === "apple" ? (
+                  <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                ) : (
+                  <svg className="mr-3 h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-1.55 4.18-3.74 4.25z"/>
+                  </svg>
+                )}
                 <span className="text-base font-bold">{t("welcome_login_apple")}</span>
               </Button>
             </>

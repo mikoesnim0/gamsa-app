@@ -91,6 +91,7 @@ const EN: Record<string, string> = {
   welcome_error_no_code: "Please enter the code.",
   welcome_error_invalid_code: "Invalid verification code.",
   welcome_info_coming_soon: "This login method is coming soon.",
+  welcome_error_social_login: "Login failed. Please try again.",
 
   // ── Home ──
   home_todays_record: "Today's Record",
@@ -451,6 +452,7 @@ const KO: Record<string, string> = {
   welcome_error_no_code: "인증번호를 입력해주세요.",
   welcome_error_invalid_code: "인증번호가 올바르지 않습니다.",
   welcome_info_coming_soon: "이 로그인 방법은 준비 중입니다.",
+  welcome_error_social_login: "로그인에 실패했습니다. 다시 시도해주세요.",
 
   // ── Home ──
   home_todays_record: "오늘의 기록",

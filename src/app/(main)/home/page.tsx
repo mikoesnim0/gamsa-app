@@ -137,7 +137,7 @@ export default function HomePage() {
         </Link>
       </header>
 
-      <div className="space-y-5 px-4 pb-8">
+      <div className="space-y-6 px-4 pb-8">
         {/* Today's Record Card */}
         <div className="rounded-[28px] border border-primary/10 bg-card p-4 shadow-sm">
           <div className="mb-3 flex items-start justify-between">
@@ -266,52 +266,42 @@ export default function HomePage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : recentLetters.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {recentLetters.map((letter, idx) => (
                 <Link key={letter.id} href={`/records/${letter.id}`}>
-                  <div className="rounded-[32px] border border-[#eceff3] bg-card p-5 shadow-[0_2px_0_rgba(0,0,0,0.03)] transition-colors hover:bg-muted/30">
-                    <div className="flex gap-4">
-                      <div className={cn(
-                        "flex h-14 w-14 shrink-0 items-center justify-center rounded-full",
-                        idx === 0 ? "bg-[#f7efe6]" : "bg-secondary"
+                  <div className="rounded-[28px] border border-[#eceff3] bg-card px-4 py-4 shadow-[0_2px_0_rgba(0,0,0,0.03)] transition-colors hover:bg-muted/30">
+                    <div className="flex gap-3.5">
+                      <Avatar className={cn(
+                        "h-12 w-12 shrink-0",
                       )}>
-                        <Avatar className="h-14 w-14">
-                          <AvatarFallback className={cn(
-                            "font-serif text-lg",
-                            idx === 0
-                              ? "bg-[#f7efe6] text-primary"
-                              : "bg-secondary text-[#a9b6c8]"
-                          )}>
-                            {letter.name[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
+                        <AvatarFallback className={cn(
+                          "font-serif text-base",
+                          idx === 0
+                            ? "bg-[#f7efe6] text-primary"
+                            : "bg-secondary text-[#a9b6c8]"
+                        )}>
+                          {letter.name[0]}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="mb-1 flex items-start justify-between gap-3">
-                          <h4 className="truncate font-serif text-xl font-bold leading-none">{letter.name}</h4>
-                          <span className="pt-0.5 shrink-0 text-[13px] text-muted-foreground">
-                            {letter.timeAgo}
-                          </span>
+                        <div className="flex items-baseline gap-2">
+                          <h4 className="truncate font-serif text-[17px] font-bold leading-none">{letter.name}</h4>
+                          {letter.title && (
+                            <p className="truncate text-[14px] text-foreground/70">{letter.title}</p>
+                          )}
                         </div>
-                        {letter.title && (
-                          <p className="mt-1 truncate text-[14px] font-semibold text-foreground/80">
-                            {letter.title}
-                          </p>
-                        )}
-                        <p className="mt-1 line-clamp-2 text-[14px] leading-[1.45] text-muted-foreground">
+                        <p className="mt-1.5 line-clamp-2 text-[13px] leading-[1.5] text-muted-foreground">
                           {letter.content}
                         </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+                        <span className="text-[12px] text-muted-foreground">
+                          {letter.timeAgo}
+                        </span>
                         {letter.tags.length > 0 && (
-                          <div className="mt-2.5 flex gap-2">
-                            {letter.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-[#f7efe6] px-3 py-1 font-serif text-[11px] font-bold uppercase tracking-wider text-[#7386a4]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
+                          <span className="rounded-full bg-[#f7efe6] px-2.5 py-0.5 text-[10px] font-semibold text-[#7386a4]">
+                            {letter.tags[0]}
+                          </span>
                         )}
                       </div>
                     </div>

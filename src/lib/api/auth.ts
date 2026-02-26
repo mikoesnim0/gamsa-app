@@ -1,19 +1,23 @@
 /**
  * 인증 API 추상화 레이어
- * Firebase Auth를 사용한 전화번호 인증
+ * Firebase Auth: 전화번호 / Apple / KakaoTalk 인증
  */
 
 import {
   signInWithPhoneNumber,
+  signInWithPopup,
+  signInWithCustomToken,
+  OAuthProvider,
   RecaptchaVerifier,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type ConfirmationResult,
   type User as FirebaseUser,
 } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getFirebaseAuth, getFirebaseDb, getFirebaseStorage } from "@/lib/firebase/config";
+import { getFirebaseAuth, getFirebaseDb, getFirebaseStorage, getFirebaseFunctions } from "@/lib/firebase/config";
 import type { User } from "@/types";
 
 let confirmationResult: ConfirmationResult | null = null;
@@ -51,23 +55,17 @@ export async function sendVerificationCode(
   );
 }
 
-export async function verifyCode(code: string): Promise<User> {
-  if (!confirmationResult) {
-    throw new Error("인증번호를 먼저 요청해주세요.");
-  }
-
-  const result = await confirmationResult.confirm(code);
-  const firebaseUser = result.user;
-
+/** Ensure a Firestore user document exists for the given Firebase user */
+async function ensureUserDoc(firebaseUser: { uid: string; displayName?: string | null; photoURL?: string | null }): Promise<User> {
   const db = getFirebaseDb();
   const userDocRef = doc(db, "users", firebaseUser.uid);
   const userSnap = await getDoc(userDocRef);
 
   if (!userSnap.exists()) {
     const newUser: Omit<User, "id"> = {
-      phoneHash: "", // Cloud Function에서 해시 처리
-      name: "",
-      profileImg: null,
+      phoneHash: "",
+      name: firebaseUser.displayName ?? "",
+      profileImg: firebaseUser.photoURL ?? null,
       bio: null,
       pushToken: null,
       inviteCode: generateInviteCode(),
@@ -79,6 +77,91 @@ export async function verifyCode(code: string): Promise<User> {
   }
 
   return { id: userSnap.id, ...userSnap.data() } as User;
+}
+
+export async function verifyCode(code: string): Promise<User> {
+  if (!confirmationResult) {
+    throw new Error("인증번호를 먼저 요청해주세요.");
+  }
+
+  const result = await confirmationResult.confirm(code);
+  return ensureUserDoc(result.user);
+}
+
+/** Apple Sign-In via Firebase OAuthProvider */
+export async function signInWithApple(): Promise<User> {
+  const authInstance = getFirebaseAuth();
+  const provider = new OAuthProvider("apple.com");
+  provider.addScope("email");
+  provider.addScope("name");
+  provider.setCustomParameters({ locale: "ko" });
+
+  const result = await signInWithPopup(authInstance, provider);
+  return ensureUserDoc(result.user);
+}
+
+/** KakaoTalk Sign-In: Kakao JS SDK → Cloud Function → Custom Token */
+export async function signInWithKakao(): Promise<User> {
+  // 1. Kakao SDK login — get access token
+  const kakaoToken = await getKakaoAccessToken();
+
+  // 2. Send to Cloud Function to exchange for Firebase custom token
+  const fn = httpsCallable<{ accessToken: string }, { customToken: string }>(
+    getFirebaseFunctions(),
+    "kakaoAuth"
+  );
+  const { data } = await fn({ accessToken: kakaoToken });
+
+  // 3. Sign in with custom token
+  const authInstance = getFirebaseAuth();
+  const credential = await signInWithCustomToken(authInstance, data.customToken);
+  return ensureUserDoc(credential.user);
+}
+
+/** Load Kakao JS SDK and get access token via popup */
+function getKakaoAccessToken(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+    if (!kakaoKey) {
+      reject(new Error("NEXT_PUBLIC_KAKAO_JS_KEY is not set"));
+      return;
+    }
+
+    function doLogin() {
+      const { Kakao } = window as unknown as { Kakao: KakaoSDK };
+      if (!Kakao.isInitialized()) {
+        Kakao.init(kakaoKey!);
+      }
+      Kakao.Auth.login({
+        success: (authObj: { access_token: string }) => resolve(authObj.access_token),
+        fail: (err: unknown) => reject(err),
+      });
+    }
+
+    // Load SDK script if not already loaded
+    const w = window as unknown as { Kakao?: KakaoSDK };
+    if (w.Kakao) {
+      doLogin();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://developers.kakao.com/sdk/js/kakao.min.js";
+    script.onload = doLogin;
+    script.onerror = () => reject(new Error("Failed to load Kakao SDK"));
+    document.head.appendChild(script);
+  });
+}
+
+interface KakaoSDK {
+  isInitialized(): boolean;
+  init(key: string): void;
+  Auth: {
+    login(opts: {
+      success: (authObj: { access_token: string }) => void;
+      fail: (err: unknown) => void;
+    }): void;
+  };
 }
 
 export async function signOut(): Promise<void> {

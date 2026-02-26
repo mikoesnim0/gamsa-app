@@ -22,6 +22,11 @@ const notoSerifKr = Noto_Serif_KR({
 export const metadata: Metadata = {
   title: "Gratella — 매일 감사를 기록하고, 마음을 전하세요",
   description: "매일 감사를 기록하고, 그 마음이 상대방에게 도착하는 앱. 혼잣말이 아니라 '도착하는 감사'입니다.",
+  manifest: "/manifest.json",
+  icons: [
+    { rel: "icon", url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+    { rel: "apple-touch-icon", url: "/icons/apple-touch-icon.png", sizes: "180x180" },
+  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
