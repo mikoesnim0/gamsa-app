@@ -152,7 +152,7 @@ export default function HomePage() {
         <header className="mb-7 flex items-center justify-between">
           <span className="h-10 w-10" />
           <h1 className="font-serif text-[34px] font-bold italic leading-none tracking-[-1px] text-[#f0b7c4]">
-            Today
+            Gratella
           </h1>
           <Link
             href="/notifications"
