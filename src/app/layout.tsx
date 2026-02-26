@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
+import { I18nProvider } from "@/lib/i18n-context";
 import "./globals.css";
 
 const notoSansKr = Noto_Sans_KR({
@@ -50,9 +51,11 @@ export default function RootLayout({
       <body
         className={`${notoSansKr.variable} ${notoSerifKr.variable} font-sans antialiased`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </I18nProvider>
         <Toaster position="top-center" richColors />
       </body>
     </html>

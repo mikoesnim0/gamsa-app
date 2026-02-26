@@ -11,26 +11,27 @@ import { EmotionIcon } from "@/components/ui/emotion-icon";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n-context";
 import { pickSingleContact } from "@/lib/contacts";
 import type { EmotionTag, DeliveryOption, Target } from "@/types";
 
 const CROP_VIEW_SIZE = 280;
 
-const EMOTION_OPTIONS: { value: EmotionTag; label: string }[] = [
-  { value: "gratitude", label: "고마움" },
-  { value: "comfort", label: "위로" },
-  { value: "respect", label: "존경" },
-  { value: "love", label: "사랑" },
-  { value: "warmth", label: "따뜻함" },
-  { value: "joy", label: "기쁨" },
-  { value: "trust", label: "신뢰" },
-  { value: "hope", label: "희망" },
+const EMOTION_KEYS: { value: EmotionTag; labelKey: string }[] = [
+  { value: "gratitude", labelKey: "emotion_gratitude" },
+  { value: "comfort", labelKey: "emotion_comfort" },
+  { value: "respect", labelKey: "emotion_respect" },
+  { value: "love", labelKey: "emotion_love" },
+  { value: "warmth", labelKey: "emotion_warmth" },
+  { value: "joy", labelKey: "emotion_joy" },
+  { value: "trust", labelKey: "emotion_trust" },
+  { value: "hope", labelKey: "emotion_hope" },
 ];
 
-const DELIVERY_OPTIONS: { value: DeliveryOption; label: string; icon: typeof SendHorizonal; rightIcon: typeof ChevronRight }[] = [
-  { value: "send_now", label: "바로 전송", icon: SendHorizonal, rightIcon: ChevronRight },
-  { value: "schedule", label: "예약 전달", icon: Clock, rightIcon: Clock },
-  { value: "private_vault", label: "비공개 보관", icon: LockKeyhole, rightIcon: LockKeyhole },
+const DELIVERY_KEYS: { value: DeliveryOption; labelKey: string; icon: typeof SendHorizonal; rightIcon: typeof ChevronRight }[] = [
+  { value: "send_now", labelKey: "write_delivery_send_now", icon: SendHorizonal, rightIcon: ChevronRight },
+  { value: "schedule", labelKey: "write_delivery_schedule", icon: Clock, rightIcon: Clock },
+  { value: "private_vault", labelKey: "write_delivery_private", icon: LockKeyhole, rightIcon: LockKeyhole },
 ];
 
 function clamp(n: number, min: number, max: number): number {
@@ -44,6 +45,7 @@ function daysInMonth(year: number, month: number): number {
 export default function WritePage() {
   const router = useRouter();
   const { firebaseUser } = useAuth();
+  const { t } = useI18n();
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(true);
   const [selectedEmotions, setSelectedEmotions] = useState<EmotionTag[]>([]);
@@ -86,21 +88,22 @@ export default function WritePage() {
     api.targets
       .getTargets(firebaseUser.uid)
       .then(setTargets)
-      .catch(() => toast.error("대상 목록을 불러올 수 없습니다."))
+      .catch(() => toast.error(t("write_error_load_targets")))
       .finally(() => setTargetsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser]);
 
   const filteredTargets = useMemo(() => {
     const list = searchQuery.trim()
-      ? targets.filter((t) =>
-          t.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      ? targets.filter((tgt) =>
+          tgt.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
         )
       : targets;
     return list.slice(0, 3); // Max 3 suggestions
   }, [searchQuery, targets]);
 
   const exactMatch = targets.some(
-    (t) => t.name.toLowerCase() === searchQuery.trim().toLowerCase()
+    (tgt) => tgt.name.toLowerCase() === searchQuery.trim().toLowerCase()
   );
 
   async function handleInlineCreateTarget() {
@@ -115,9 +118,9 @@ export default function WritePage() {
       setTargets((prev) => [...prev, newTarget]);
       setSelectedTarget(newTarget.id);
       setSearchQuery("");
-      toast.success(`"${newTarget.name}" 대상이 등록되었습니다.`);
+      toast.success(t("write_toast_target_created", { name: newTarget.name }));
     } catch {
-      toast.error("대상 등록에 실패했습니다.");
+      toast.error(t("write_error_create_target"));
     } finally {
       setCreatingTarget(false);
     }
@@ -127,7 +130,7 @@ export default function WritePage() {
     try {
       const contact = await pickSingleContact();
       if (!contact) {
-        toast.info("연락처 가져오기는 모바일 앱에서 사용할 수 있습니다.");
+        toast.info(t("write_info_contacts_mobile"));
         return;
       }
       const name = contact.name;
@@ -142,11 +145,11 @@ export default function WritePage() {
         setTargets((prev) => [...prev, newTarget]);
         setSelectedTarget(newTarget.id);
         setSearchQuery("");
-        toast.success(`"${name}" 연락처에서 등록되었습니다.`);
+        toast.success(t("write_toast_contact_registered", { name }));
         setCreatingTarget(false);
       }
     } catch {
-      toast.error("연락처를 가져올 수 없습니다.");
+      toast.error(t("write_error_import_contact"));
       setCreatingTarget(false);
     }
   }
@@ -244,7 +247,7 @@ export default function WritePage() {
   }, []);
 
   const scheduleSummary = useMemo(() => {
-    if (!scheduleAt) return "전달 날짜/시간을 선택하세요";
+    if (!scheduleAt) return t("write_schedule_placeholder");
     const dt = new Date(scheduleAt);
     return dt.toLocaleString("ko-KR", {
       year: "numeric",
@@ -253,7 +256,8 @@ export default function WritePage() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  }, [scheduleAt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleAt, t]);
 
   function openSchedulePicker() {
     const dt = scheduleAt ? new Date(scheduleAt) : new Date();
@@ -280,11 +284,11 @@ export default function WritePage() {
   async function handleSend() {
     if (!firebaseUser) return;
     if (!selectedTarget) {
-      toast.error("감사를 전할 대상을 선택해주세요.");
+      toast.error(t("write_error_no_target"));
       return;
     }
     if (!message.trim()) {
-      toast.error("편지 내용을 작성해주세요.");
+      toast.error(t("write_error_no_content"));
       return;
     }
     setSending(true);
@@ -298,17 +302,17 @@ export default function WritePage() {
         isPublic: delivery !== "private_vault",
       });
       await api.streak.checkAndUpdateStreak(firebaseUser.uid);
-      toast.success("감사가 성공적으로 전달되었습니다!");
+      toast.success(t("write_toast_sent"));
       router.push("/home");
     } catch (err) {
-      toast.error("전송에 실패했습니다.");
+      toast.error(t("write_error_send_failed"));
       console.error(err);
       setSending(false);
     }
   }
 
   const selectedTargetName = selectedTarget
-    ? targets.find((t) => t.id === selectedTarget)?.name
+    ? targets.find((tgt) => tgt.id === selectedTarget)?.name
     : null;
 
   return (
@@ -325,9 +329,9 @@ export default function WritePage() {
       </header>
 
       <div className="space-y-6 px-4 pb-8">
-        {/* Section: Target — "소중한 사람에게" */}
+        {/* Section: Target */}
         <section className="space-y-2">
-          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">소중한 사람에게</p>
+          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">{t("write_to_someone")}</p>
 
           {/* Selected target display */}
           {selectedTargetName && (
@@ -346,13 +350,13 @@ export default function WritePage() {
             </div>
           )}
 
-          {/* Search bar — from reference: rounded-full bg-muted */}
+          {/* Search bar */}
           {!selectedTarget && (
             <>
               <div className="flex items-center gap-2 rounded-full bg-[#f3f1f2] px-4 py-3">
                 <Search className="h-5 w-5 text-[#c3c9d4]" strokeWidth={1.5} />
                 <input
-                  placeholder="친구를 검색하세요..."
+                  placeholder={t("write_placeholder_search")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full border-0 bg-transparent text-[16px] text-foreground outline-none ring-0 placeholder:text-muted-foreground"
@@ -406,7 +410,7 @@ export default function WritePage() {
                           )}
                         </div>
                         <p className="text-[14px] font-semibold text-primary">
-                          &quot;{searchQuery.trim()}&quot; 새로 등록하기
+                          {t("write_add_new_target", { name: searchQuery.trim() })}
                         </p>
                       </button>
                     )}
@@ -420,12 +424,12 @@ export default function WritePage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
                         <Contact className="h-4 w-4 text-primary" strokeWidth={1.5} />
                       </div>
-                      <p className="text-[14px] font-medium text-muted-foreground">연락처에서 가져오기</p>
+                      <p className="text-[14px] font-medium text-muted-foreground">{t("write_import_contacts")}</p>
                     </button>
 
                     {!searchQuery.trim() && filteredTargets.length === 0 && (
                       <p className="py-2 text-center text-[14px] text-muted-foreground">
-                        이름을 입력하여 대상을 검색하거나 등록하세요.
+                        {t("write_empty_target_hint")}
                       </p>
                     )}
                   </>
@@ -435,11 +439,11 @@ export default function WritePage() {
           )}
         </section>
 
-        {/* Section: Emotion Tags — "지금 감정은 어떤가요?" */}
+        {/* Section: Emotion Tags */}
         <section className="space-y-2">
-          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">지금 감정은 어떤가요?</p>
+          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">{t("write_how_feeling")}</p>
           <div className="flex flex-wrap gap-2">
-            {EMOTION_OPTIONS.map((option) => {
+            {EMOTION_KEYS.map((option) => {
               const isSelected = selectedEmotions.includes(option.value);
               return (
                 <button
@@ -454,21 +458,21 @@ export default function WritePage() {
                   )}
                 >
                   <EmotionIcon emotion={option.value} className="h-4 w-4" />
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               );
             })}
           </div>
         </section>
 
-        {/* Section: Title — "편지 제목" */}
+        {/* Section: Title */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">편지 제목</p>
+            <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">{t("write_title_section")}</p>
             <span className="text-[11px] text-[#bdc4d1]">{title.length} / 40</span>
           </div>
           <input
-            placeholder="감사를 전할 제목을 입력하세요..."
+            placeholder={t("write_placeholder_title")}
             maxLength={40}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -476,14 +480,14 @@ export default function WritePage() {
           />
         </section>
 
-        {/* Section: Message — "메시지" */}
+        {/* Section: Message */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">메시지</p>
+            <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">{t("write_message_section")}</p>
             <span className="text-[11px] text-[#bdc4d1]">{message.length} / 500</span>
           </div>
           <textarea
-            placeholder="마음을 담아 메시지를 작성해보세요..."
+            placeholder={t("write_placeholder_message")}
             maxLength={500}
             rows={6}
             value={message}
@@ -492,13 +496,13 @@ export default function WritePage() {
           />
         </section>
 
-        {/* Section: Photo — "사진 첨부" */}
+        {/* Section: Photo */}
         <section className="space-y-2">
-          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">사진 첨부</p>
+          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">{t("write_photo_section")}</p>
           <label className="flex cursor-pointer items-center gap-3 rounded-[22px] bg-[#f3f1f2] px-4 py-3 text-[14px] text-[#6f7f97] transition-colors hover:bg-[#ede8eb]">
             <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
             <input type="file" accept="image/*" onChange={onFileChange} className="hidden" />
-            {imageName ? `선택됨: ${imageName}` : "이미지 선택"}
+            {imageName ? t("write_image_selected", { filename: imageName }) : t("write_select_image")}
           </label>
           {imageUrl && (
             <div className="relative mt-2 overflow-hidden rounded-[20px] bg-muted">
@@ -514,11 +518,11 @@ export default function WritePage() {
           )}
         </section>
 
-        {/* Section: Delivery — "전달 방법" */}
+        {/* Section: Delivery */}
         <section className="space-y-2">
-          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">전달 방법</p>
+          <p className="text-[13px] font-bold tracking-wide text-[#7587a1]">{t("write_delivery_section")}</p>
           <div className="space-y-2">
-            {DELIVERY_OPTIONS.map((option) => {
+            {DELIVERY_KEYS.map((option) => {
               const isSelected = delivery === option.value;
               return (
                 <button
@@ -534,7 +538,7 @@ export default function WritePage() {
                     )}>
                       {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-[#efb8c2]" />}
                     </span>
-                    <span className="font-serif text-[18px] font-semibold text-[#364255]">{option.label}</span>
+                    <span className="font-serif text-[18px] font-semibold text-[#364255]">{t(option.labelKey)}</span>
                   </div>
                   <option.rightIcon className={cn("h-5 w-5", isSelected ? "text-[#efb8c2]" : "text-[#93a3bb]")} strokeWidth={1.5} />
                 </button>
@@ -559,7 +563,7 @@ export default function WritePage() {
           </section>
         )}
 
-        {/* Send Button — inline, scrolls with content, from reference style */}
+        {/* Send Button */}
         <section className="pb-[calc(80px+env(safe-area-inset-bottom))]">
           <button
             className="mt-2 w-full rounded-full bg-[#efb8c2] py-3 font-serif text-[22px] font-bold text-[#1f2a3d] active:scale-[0.98] transition-transform disabled:opacity-50"
@@ -567,7 +571,7 @@ export default function WritePage() {
             disabled={sending}
           >
             {sending && <Loader2 className="mr-2 inline h-5 w-5 animate-spin" strokeWidth={1.5} />}
-            감사 전하기
+            {t("write_send_button")}
           </button>
         </section>
       </div>
@@ -576,7 +580,7 @@ export default function WritePage() {
       {cropOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
           <div className="w-full max-w-[380px] rounded-[24px] bg-card p-4">
-            <h3 className="mb-3 text-center font-serif text-lg font-bold">사진 자르기</h3>
+            <h3 className="mb-3 text-center font-serif text-lg font-bold">{t("write_crop_title")}</h3>
             <div
               className="relative mx-auto overflow-hidden rounded-[16px] bg-muted"
               style={{ width: CROP_VIEW_SIZE, height: CROP_VIEW_SIZE, touchAction: "none" }}
@@ -614,7 +618,7 @@ export default function WritePage() {
             </div>
 
             <div className="mt-3">
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">확대/축소</label>
+              <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t("write_crop_zoom")}</label>
               <input
                 type="range"
                 min={1}
@@ -644,7 +648,7 @@ export default function WritePage() {
                   setCropY(0);
                 }}
               >
-                취소
+                {t("common_cancel")}
               </Button>
               <Button
                 variant="outline"
@@ -654,7 +658,7 @@ export default function WritePage() {
                   setCropY(0);
                 }}
               >
-                초기화
+                {t("common_reset")}
               </Button>
               <Button
                 onClick={async () => {
@@ -663,7 +667,7 @@ export default function WritePage() {
                   setCropOpen(false);
                 }}
               >
-                적용
+                {t("common_apply")}
               </Button>
             </div>
           </div>
@@ -676,17 +680,17 @@ export default function WritePage() {
           <button
             type="button"
             className="absolute inset-0"
-            aria-label="닫기"
+            aria-label={t("common_close")}
             onClick={() => setSchedulePickerOpen(false)}
           />
           <div className="relative mx-auto w-full max-w-md rounded-t-[28px] bg-card px-5 pb-6 pt-4">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
-            <h3 className="mb-4 text-center font-serif text-lg font-bold">전달 날짜/시간 선택</h3>
+            <h3 className="mb-4 text-center font-serif text-lg font-bold">{t("write_schedule_title")}</h3>
 
             <div className="grid grid-cols-2 gap-3">
               {/* Year */}
               <div className="rounded-[14px] bg-muted p-3">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">연도</p>
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("write_schedule_year")}</p>
                 <div className="max-h-32 space-y-1 overflow-auto">
                   {yearOptions.map((y) => (
                     <button
@@ -711,7 +715,7 @@ export default function WritePage() {
 
               {/* Month */}
               <div className="rounded-[14px] bg-muted p-3">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">월</p>
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("write_schedule_month")}</p>
                 <div className="max-h-32 space-y-1 overflow-auto">
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                     <button
@@ -728,7 +732,7 @@ export default function WritePage() {
                         scheduleParts.month === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                       )}
                     >
-                      {m}월
+                      {m}
                     </button>
                   ))}
                 </div>
@@ -736,7 +740,7 @@ export default function WritePage() {
 
               {/* Day */}
               <div className="rounded-[14px] bg-muted p-3">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">일</p>
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("write_schedule_day")}</p>
                 <div className="max-h-32 space-y-1 overflow-auto">
                   {Array.from(
                     { length: daysInMonth(scheduleParts.year, scheduleParts.month) },
@@ -751,7 +755,7 @@ export default function WritePage() {
                         scheduleParts.day === d ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                       )}
                     >
-                      {d}일
+                      {d}
                     </button>
                   ))}
                 </div>
@@ -759,7 +763,7 @@ export default function WritePage() {
 
               {/* Time */}
               <div className="rounded-[14px] bg-muted p-3">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">시간</p>
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("write_schedule_time")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     value={scheduleParts.hour}
@@ -768,7 +772,7 @@ export default function WritePage() {
                   >
                     {Array.from({ length: 24 }, (_, h) => h).map((h) => (
                       <option key={h} value={h}>
-                        {String(h).padStart(2, "0")}시
+                        {String(h).padStart(2, "0")}
                       </option>
                     ))}
                   </select>
@@ -781,7 +785,7 @@ export default function WritePage() {
                       .filter((m) => m % 5 === 0)
                       .map((m) => (
                         <option key={m} value={m}>
-                          {String(m).padStart(2, "0")}분
+                          {String(m).padStart(2, "0")}
                         </option>
                       ))}
                   </select>
@@ -791,10 +795,10 @@ export default function WritePage() {
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <Button variant="outline" className="rounded-full" onClick={() => setSchedulePickerOpen(false)}>
-                취소
+                {t("common_cancel")}
               </Button>
               <Button className="rounded-full" onClick={applySchedulePicker}>
-                적용
+                {t("common_apply")}
               </Button>
             </div>
           </div>

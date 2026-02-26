@@ -10,18 +10,19 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n-context";
 import type { GratitudeEntry, Target, EmotionTag } from "@/types";
 
-const EMOTION_LABELS: Record<string, string> = {
-  gratitude: "고마움",
-  comfort: "위로",
-  respect: "존경",
-  love: "사랑",
-  warmth: "따뜻함",
-  joy: "기쁨",
-  nostalgia: "그리움",
-  trust: "신뢰",
-  hope: "희망",
+const EMOTION_KEYS: Record<string, string> = {
+  gratitude: "emotion_gratitude",
+  comfort: "emotion_comfort",
+  respect: "emotion_respect",
+  love: "emotion_love",
+  warmth: "emotion_warmth",
+  joy: "emotion_joy",
+  nostalgia: "emotion_nostalgia",
+  trust: "emotion_trust",
+  hope: "emotion_hope",
 };
 
 const ALL_EMOTIONS: EmotionTag[] = [
@@ -46,26 +47,13 @@ type OpenMenu = "date" | "emotion" | "friend" | null;
 type TabKey = "total" | "sent" | "received";
 type ViewMode = "timeline" | "grouped";
 
-const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
-  { value: "recent", label: "최신순" },
-  { value: "oldest", label: "오래된순" },
-  { value: "week", label: "이번 주" },
-  { value: "month", label: "이번 달" },
-  { value: "year", label: "올해" },
+const DATE_FILTER_KEYS: { value: DateFilter; labelKey: string }[] = [
+  { value: "recent", labelKey: "records_filter_recent" },
+  { value: "oldest", labelKey: "records_filter_oldest" },
+  { value: "week", labelKey: "records_filter_this_week" },
+  { value: "month", labelKey: "records_filter_this_month" },
+  { value: "year", labelKey: "records_filter_this_year" },
 ];
-
-function getRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 7) return `${diffDay}일 전`;
-  return date.toLocaleDateString("ko-KR");
-}
 
 function inDateRange(date: Date, filter: DateFilter): boolean {
   const now = new Date();
@@ -84,6 +72,7 @@ function inDateRange(date: Date, filter: DateFilter): boolean {
 
 export default function RecordsPage() {
   const { firebaseUser } = useAuth();
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const [entries, setEntries] = useState<GratitudeEntry[]>([]);
   const [targets, setTargets] = useState<Target[]>([]);
@@ -103,6 +92,19 @@ export default function RecordsPage() {
   const highlightRef = useRef<HTMLDivElement>(null);
   // Expanded grouped sections
   const [expandedTargets, setExpandedTargets] = useState<Set<string>>(new Set());
+
+  function getRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return t("time_just_now");
+    if (diffMin < 60) return t("time_minutes_ago", { count: diffMin });
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return t("time_hours_ago", { count: diffHour });
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 7) return t("time_days_ago", { count: diffDay });
+    return date.toLocaleDateString("ko-KR");
+  }
 
   // Highlight scroll + auto-dismiss
   useEffect(() => {
@@ -134,12 +136,12 @@ export default function RecordsPage() {
 
   const targetNames = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const t of targets) map[t.id] = t.name;
+    for (const tgt of targets) map[tgt.id] = tgt.name;
     return map;
   }, [targets]);
 
   const friendOptions = useMemo(() => {
-    return targets.map((t) => ({ id: t.id, name: t.name }));
+    return targets.map((tgt) => ({ id: tgt.id, name: tgt.name }));
   }, [targets]);
 
   // Filter + sort entries
@@ -182,12 +184,13 @@ export default function RecordsPage() {
     }
     return ALL_EMOTIONS.map((emotion) => ({
       emotion,
-      label: EMOTION_LABELS[emotion] ?? emotion,
+      label: t(EMOTION_KEYS[emotion] ?? emotion),
       count: counts[emotion] ?? 0,
       percentage: total > 0 ? Math.round(((counts[emotion] ?? 0) / total) * 100) : 0,
       color: EMOTION_COLORS[emotion] ?? "#ccc",
     }));
-  }, [filteredEntries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredEntries, t]);
 
   const topEmotion = useMemo(() => {
     const sorted = emotionRatios.filter((r) => r.count > 0).sort((a, b) => b.count - a.count);
@@ -218,13 +221,14 @@ export default function RecordsPage() {
       return {
         id: entry.id,
         targetId: entry.targetId ?? "_self",
-        name: entry.targetId ? (targetNames[entry.targetId] ?? "알 수 없음") : "나에게",
+        name: entry.targetId ? (targetNames[entry.targetId] ?? t("common_unknown")) : t("common_to_self"),
         preview: entry.content.slice(0, 40) + (entry.content.length > 40 ? "..." : ""),
         timeAgo: getRelativeTime(d),
-        tag: entry.emotionTags[0] ? (EMOTION_LABELS[entry.emotionTags[0]] ?? entry.emotionTags[0]) : "",
+        tag: entry.emotionTags[0] ? t(EMOTION_KEYS[entry.emotionTags[0]] ?? entry.emotionTags[0]) : "",
       };
     });
-  }, [filteredEntries, targetNames]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredEntries, targetNames, t]);
 
   // Group letters by target for grouped view
   const groupedLetters = useMemo(() => {
@@ -282,12 +286,12 @@ export default function RecordsPage() {
   function handleShare() {
     if (typeof navigator !== "undefined" && navigator.share) {
       navigator.share({
-        title: "감사노트 기록",
-        text: `총 ${totalSent}개의 감사를 전했어요!`,
+        title: t("records_share_title"),
+        text: t("records_share_text", { count: totalSent }),
         url: window.location.href,
       }).catch(() => {});
     } else {
-      toast.success("공유 링크가 복사되었습니다!");
+      toast.success(t("records_toast_share_copied"));
     }
   }
 
@@ -303,15 +307,22 @@ export default function RecordsPage() {
     );
   }
 
-  const dateLabelCurrent = DATE_OPTIONS.find((o) => o.value === dateFilter)?.label ?? "최신순";
-  const emotionLabel = selectedEmotions.length === 0 ? "전체" : `${selectedEmotions.length}개`;
-  const friendLabel = selectedFriends.length === 0 ? "전체" : `${selectedFriends.length}명`;
+  const dateLabelCurrent = (() => {
+    const found = DATE_FILTER_KEYS.find((o) => o.value === dateFilter);
+    return found ? t(found.labelKey) : t("records_filter_recent");
+  })();
+  const emotionLabel = selectedEmotions.length === 0
+    ? t("common_all")
+    : t("records_filter_emotion_count", { count: selectedEmotions.length });
+  const friendLabel = selectedFriends.length === 0
+    ? t("common_all")
+    : t("records_filter_friend_count", { count: selectedFriends.length });
 
   // Emotion Donut component (reused in sent/received tabs)
   function EmotionDonut() {
     return (
       <section className="mt-7">
-        <h3 className="font-serif text-[32px] font-bold leading-none text-[#1f2a3d]">감정 비율</h3>
+        <h3 className="font-serif text-[32px] font-bold leading-none text-[#1f2a3d]">{t("records_emotion_ratio")}</h3>
         <div className="mt-3 rounded-[34px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
           <div className="flex items-start gap-5">
             {/* Donut */}
@@ -322,7 +333,7 @@ export default function RecordsPage() {
                     {topEmotion ? `${topEmotion.percentage}%` : "0%"}
                   </span>
                   <p className="text-[10px] font-semibold tracking-wide text-[#8d99ac]">
-                    {topEmotion?.label ?? "고마움"}
+                    {topEmotion?.label ?? t("emotion_gratitude")}
                   </p>
                 </div>
               </div>
@@ -426,7 +437,7 @@ export default function RecordsPage() {
                     {group.name}
                   </p>
                   <p className="mt-1.5 text-[13px] text-[#8d99ac]">
-                    {group.count}개의 감사
+                    {t("records_group_count", { count: group.count })}
                   </p>
                 </div>
                 <ChevronDown
@@ -483,7 +494,7 @@ export default function RecordsPage() {
       {menuOpen && (
         <button
           type="button"
-          aria-label="메뉴 닫기"
+          aria-label={t("common_close")}
           onClick={() => setMenuOpen(null)}
           className="fixed inset-0 z-20 bg-transparent"
         />
@@ -492,7 +503,7 @@ export default function RecordsPage() {
       {/* Header — centered serif title, from reference colors */}
       <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
         <div />
-        <h1 className="text-center font-serif text-[26px] font-bold leading-none text-[#1f2a3d]">기록 & 통계</h1>
+        <h1 className="text-center font-serif text-[26px] font-bold leading-none text-[#1f2a3d]">{t("records_title")}</h1>
         <Button variant="ghost" size="icon" className="rounded-full" onClick={handleShare}>
           <Share2 className="h-5 w-5 text-[#69798f]" strokeWidth={1.5} />
         </Button>
@@ -507,9 +518,9 @@ export default function RecordsPage() {
           {/* Tabs — from reference style */}
           <div className="mb-4 flex border-b border-[#f1d7dc] text-center text-[14px] font-semibold text-[#8d99ac]">
             {([
-              { key: "total" as TabKey, label: "전체" },
-              { key: "sent" as TabKey, label: "보낸 감사" },
-              { key: "received" as TabKey, label: "받은 감사" },
+              { key: "total" as TabKey, labelKey: "records_tab_total" },
+              { key: "sent" as TabKey, labelKey: "records_tab_sent" },
+              { key: "received" as TabKey, labelKey: "records_tab_received" },
             ]).map((tab) => (
               <button
                 key={tab.key}
@@ -522,27 +533,27 @@ export default function RecordsPage() {
                     : ""
                 )}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
 
-          {/* ── 전체 Tab ── */}
+          {/* ── Total Tab ── */}
           {activeTab === "total" && (
             <div className="space-y-6">
               {/* Stats Cards — from reference exact colors */}
               <div className="grid grid-cols-2 gap-3">
                 <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
-                  <p className="text-[16px] font-semibold text-[#8d99ac]">보낸 감사</p>
+                  <p className="text-[16px] font-semibold text-[#8d99ac]">{t("records_stats_sent")}</p>
                   <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">{totalSent}</p>
                 </article>
                 <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
-                  <p className="text-[16px] font-semibold text-[#8d99ac]">받은 감사</p>
+                  <p className="text-[16px] font-semibold text-[#8d99ac]">{t("records_stats_received")}</p>
                   <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">0</p>
                 </article>
               </div>
 
-              {/* NOTE: #6 — 감정 비율은 전체 탭에서 제거, 보낸/받은 탭에서만 표시 */}
+              {/* NOTE: Emotion ratio removed from total tab, shown in sent/received tabs only */}
 
               {/* Filter Chips — from reference style */}
               <div className="relative flex gap-2 overflow-visible">
@@ -558,11 +569,11 @@ export default function RecordsPage() {
                         : "bg-[#f2f2f3] text-[#56667f]"
                     )}
                   >
-                    날짜: {dateLabelCurrent}
+                    {t("records_filter_date", { value: dateLabelCurrent })}
                   </button>
                   {menuOpen === "date" && (
                     <div className="absolute bottom-full z-30 mb-2 w-40 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
-                      {DATE_OPTIONS.map((opt) => (
+                      {DATE_FILTER_KEYS.map((opt) => (
                         <button
                           key={opt.value}
                           type="button"
@@ -572,7 +583,7 @@ export default function RecordsPage() {
                             dateFilter === opt.value ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
                           )}
                         >
-                          {opt.label}
+                          {t(opt.labelKey)}
                           {dateFilter === opt.value && <Check className="h-4 w-4 text-[#efb8c2]" />}
                         </button>
                       ))}
@@ -592,7 +603,7 @@ export default function RecordsPage() {
                         : "bg-[#f2f2f3] text-[#56667f]"
                     )}
                   >
-                    감정: {emotionLabel}
+                    {t("records_filter_emotion", { value: emotionLabel })}
                   </button>
                   {menuOpen === "emotion" && (
                     <div className="absolute bottom-full z-30 mb-2 w-44 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
@@ -604,7 +615,7 @@ export default function RecordsPage() {
                           selectedEmotions.length === 0 ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
                         )}
                       >
-                        전체
+                        {t("common_all")}
                         {selectedEmotions.length === 0 && <Check className="h-4 w-4 text-[#efb8c2]" />}
                       </button>
                       {ALL_EMOTIONS.map((emotion) => (
@@ -617,7 +628,7 @@ export default function RecordsPage() {
                             selectedEmotions.includes(emotion) ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
                           )}
                         >
-                          {EMOTION_LABELS[emotion]}
+                          {t(EMOTION_KEYS[emotion] ?? emotion)}
                           {selectedEmotions.includes(emotion) && <Check className="h-4 w-4 text-[#efb8c2]" />}
                         </button>
                       ))}
@@ -637,7 +648,7 @@ export default function RecordsPage() {
                         : "bg-[#f2f2f3] text-[#56667f]"
                     )}
                   >
-                    친구: {friendLabel}
+                    {t("records_filter_friend", { value: friendLabel })}
                   </button>
                   {menuOpen === "friend" && (
                     <div className="absolute bottom-full right-0 z-30 mb-2 w-48 rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
@@ -649,7 +660,7 @@ export default function RecordsPage() {
                           selectedFriends.length === 0 ? "bg-[#fff3f6] text-[#2f3f57]" : "text-[#60718a]"
                         )}
                       >
-                        전체
+                        {t("common_all")}
                         {selectedFriends.length === 0 && <Check className="h-4 w-4 text-[#efb8c2]" />}
                       </button>
                       {friendOptions.map((f) => (
@@ -675,7 +686,7 @@ export default function RecordsPage() {
               <section>
                 <div className="mb-4 flex items-end justify-between">
                   <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">
-                    {viewMode === "grouped" ? "대상별 감사" : "최근 감사"}
+                    {viewMode === "grouped" ? t("records_heading_by_target") : t("records_heading_recent")}
                   </h3>
                   <div className="flex items-center gap-1">
                     {/* View toggle */}
@@ -691,7 +702,7 @@ export default function RecordsPage() {
                         )}
                       >
                         <Clock className="h-3 w-3" />
-                        시간순
+                        {t("records_view_timeline")}
                       </button>
                       <button
                         type="button"
@@ -704,7 +715,7 @@ export default function RecordsPage() {
                         )}
                       >
                         <Users className="h-3 w-3" />
-                        대상별
+                        {t("records_view_grouped")}
                       </button>
                     </div>
                     {viewMode === "timeline" && lettersList.length > 3 && (
@@ -713,7 +724,7 @@ export default function RecordsPage() {
                         onClick={() => setShowAll(!showAll)}
                         className="text-[14px] font-semibold text-[#efb8c2]"
                       >
-                        {showAll ? "접기" : "전체 보기"}
+                        {showAll ? t("records_collapse") : t("records_view_all")}
                       </button>
                     )}
                   </div>
@@ -724,16 +735,16 @@ export default function RecordsPage() {
                     letters={displayedLetters}
                     emptyText={
                       selectedEmotions.length > 0 || selectedFriends.length > 0
-                        ? "필터 조건에 맞는 기록이 없습니다."
-                        : "기록이 없습니다."
+                        ? t("records_empty_filtered")
+                        : t("records_empty_none")
                     }
                   />
                 ) : (
                   <GroupedLettersList
                     emptyText={
                       selectedEmotions.length > 0 || selectedFriends.length > 0
-                        ? "필터 조건에 맞는 기록이 없습니다."
-                        : "기록이 없습니다."
+                        ? t("records_empty_filtered")
+                        : t("records_empty_none")
                     }
                   />
                 )}
@@ -741,22 +752,22 @@ export default function RecordsPage() {
             </div>
           )}
 
-          {/* ── 보낸 감사 Tab ── */}
+          {/* ── Sent Tab ── */}
           {activeTab === "sent" && (
             <div className="space-y-6">
               {/* Stats */}
               <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
-                <p className="text-[16px] font-semibold text-[#8d99ac]">보낸 감사</p>
+                <p className="text-[16px] font-semibold text-[#8d99ac]">{t("records_stats_sent")}</p>
                 <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">{totalSent}</p>
               </article>
 
-              {/* #6: Emotion ratio in sent tab */}
+              {/* Emotion ratio in sent tab */}
               <EmotionDonut />
 
               {/* Letters */}
               <section>
                 <div className="mb-4 flex items-end justify-between">
-                  <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">보낸 감사 목록</h3>
+                  <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">{t("records_heading_sent_list")}</h3>
                   <div className="flex rounded-full border border-[#ece8ea] bg-white p-0.5">
                     <button
                       type="button"
@@ -769,7 +780,7 @@ export default function RecordsPage() {
                       )}
                     >
                       <Clock className="h-3 w-3" />
-                      시간순
+                      {t("records_view_timeline")}
                     </button>
                     <button
                       type="button"
@@ -782,39 +793,39 @@ export default function RecordsPage() {
                       )}
                     >
                       <Users className="h-3 w-3" />
-                      대상별
+                      {t("records_view_grouped")}
                     </button>
                   </div>
                 </div>
                 {viewMode === "timeline" ? (
-                  <LettersList letters={lettersList} emptyText="보낸 감사가 없습니다." />
+                  <LettersList letters={lettersList} emptyText={t("records_empty_no_sent")} />
                 ) : (
-                  <GroupedLettersList emptyText="보낸 감사가 없습니다." />
+                  <GroupedLettersList emptyText={t("records_empty_no_sent")} />
                 )}
               </section>
             </div>
           )}
 
-          {/* ── 받은 감사 Tab ── */}
+          {/* ── Received Tab ── */}
           {activeTab === "received" && (
             <div className="space-y-6">
               <article className="rounded-[36px] border border-[#ece8ea] bg-[#f2f2f3] p-4">
-                <p className="text-[16px] font-semibold text-[#8d99ac]">받은 감사</p>
+                <p className="text-[16px] font-semibold text-[#8d99ac]">{t("records_stats_received")}</p>
                 <p className="mt-1 font-serif text-[40px] font-bold leading-none text-[#1f2a3d]">0</p>
               </article>
 
-              {/* #6: Emotion ratio placeholder for received tab */}
+              {/* Emotion ratio placeholder for received tab */}
               <section className="mt-7">
-                <h3 className="font-serif text-[32px] font-bold leading-none text-[#1f2a3d]">감정 비율</h3>
+                <h3 className="font-serif text-[32px] font-bold leading-none text-[#1f2a3d]">{t("records_emotion_ratio")}</h3>
                 <p className="mt-3 text-sm text-[#8d99ac]">
-                  받은 감사가 없습니다.
+                  {t("records_empty_no_received")}
                 </p>
               </section>
 
               <section>
-                <h3 className="mb-4 font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">받은 감사 목록</h3>
+                <h3 className="mb-4 font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">{t("records_heading_received_list")}</h3>
                 <p className="py-8 text-center text-sm text-[#8d99ac]">
-                  받은 감사가 없습니다.
+                  {t("records_empty_no_received")}
                 </p>
               </section>
             </div>

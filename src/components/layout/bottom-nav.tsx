@@ -10,24 +10,26 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n-context";
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: typeof Home;
 }
 
 const LEFT_ITEMS: NavItem[] = [
-  { href: "/home", label: "홈", icon: Home },
-  { href: "/records", label: "기록", icon: BookOpen },
+  { href: "/home", labelKey: "nav_home", icon: Home },
+  { href: "/records", labelKey: "nav_records", icon: BookOpen },
 ];
 
 const RIGHT_ITEMS: NavItem[] = [
-  { href: "/friends", label: "친구", icon: Users },
-  { href: "/profile", label: "나", icon: UserCircle },
+  { href: "/friends", labelKey: "nav_friends", icon: Users },
+  { href: "/profile", labelKey: "nav_profile", icon: UserCircle },
 ];
 
 function NavTab({ item, isActive }: { item: NavItem; isActive: boolean }) {
+  const { t } = useI18n();
   return (
     <Link
       href={item.href}
@@ -47,7 +49,7 @@ function NavTab({ item, isActive }: { item: NavItem; isActive: boolean }) {
           isActive ? "font-bold" : "font-medium"
         )}
       >
-        {item.label}
+        {t(item.labelKey)}
       </span>
     </Link>
   );
@@ -80,7 +82,7 @@ export function BottomNav() {
               <div className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-[#efb8c2] text-white shadow-[0_8px_24px_rgba(239,184,194,0.5)] active:scale-95 transition-transform">
                 <Image
                   src="/icons/dove-mail.png"
-                  alt="감사 쓰기"
+                  alt="write gratitude"
                   width={34}
                   height={34}
                   className="object-contain"

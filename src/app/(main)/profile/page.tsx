@@ -13,7 +13,8 @@ import {
   User,
   Loader2,
   X,
-  Camera,
+  Globe,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -22,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n-context";
+import { LANGUAGE_OPTIONS } from "@/lib/i18n";
 import type { BlockedUser } from "@/types";
 
 const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
@@ -33,6 +36,7 @@ const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
 export default function ProfilePage() {
   const router = useRouter();
   const { firebaseUser, user, signOut } = useAuth();
+  const { t, lang, setLang } = useI18n();
   const [totalSent, setTotalSent] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -50,6 +54,9 @@ export default function ProfilePage() {
   const [deliveryOptIn, setDeliveryOptIn] = useState(false);
   const [dailyReminderTime, setDailyReminderTime] = useState("09:00");
   const [reminderDropdownOpen, setReminderDropdownOpen] = useState(false);
+
+  // Language dropdown
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   // Block list
   const [blockModalOpen, setBlockModalOpen] = useState(false);
@@ -84,13 +91,13 @@ export default function ProfilePage() {
     try {
       await api.auth.updateNotificationSettings(firebaseUser.uid, { [key]: value });
     } catch {
-      toast.error("설정 저장에 실패했습니다.");
+      toast.error(t("profile_error_save"));
     }
   }
 
   async function handleLogout() {
     await signOut();
-    toast.success("로그아웃되었습니다.");
+    toast.success(t("profile_toast_logout"));
     router.push("/");
   }
 
@@ -107,7 +114,6 @@ export default function ProfilePage() {
     const reader = new FileReader();
     reader.onload = () => setEditAvatarPreview(reader.result as string);
     reader.readAsDataURL(file);
-    // TODO: Phase 2 — upload to Firebase Storage
   }
 
   async function handleSaveProfile() {
@@ -118,11 +124,11 @@ export default function ProfilePage() {
         name: editName.trim(),
         bio: editBio.trim() || null,
       });
-      toast.success("프로필이 수정되었습니다.");
+      toast.success(t("profile_toast_updated"));
       setEditOpen(false);
       window.location.reload();
     } catch {
-      toast.error("프로필 수정에 실패했습니다.");
+      toast.error(t("profile_error_update"));
     } finally {
       setSaving(false);
     }
@@ -137,7 +143,7 @@ export default function ProfilePage() {
       const users = await api.blocked.getBlockedUsers(firebaseUser.uid);
       setBlockedUsers(users);
     } catch {
-      toast.error("차단 목록을 불러올 수 없습니다.");
+      toast.error(t("profile_error_load_block"));
     } finally {
       setBlockLoading(false);
     }
@@ -152,9 +158,9 @@ export default function ProfilePage() {
         ...prev,
       ]);
       setBlockInput("");
-      toast.success("차단되었습니다.");
+      toast.success(t("profile_toast_blocked"));
     } catch {
-      toast.error("차단에 실패했습니다.");
+      toast.error(t("profile_error_block"));
     }
   }
 
@@ -163,14 +169,15 @@ export default function ProfilePage() {
     try {
       await api.blocked.removeBlockedUser(firebaseUser.uid, name);
       setBlockedUsers((prev) => prev.filter((u) => u.name !== name));
-      toast.success("차단이 해제되었습니다.");
+      toast.success(t("profile_toast_unblocked"));
     } catch {
-      toast.error("차단 해제에 실패했습니다.");
+      toast.error(t("profile_error_unblock"));
     }
   }
 
-  const displayName = user?.name || "사용자";
-  const displayBio = user?.bio || "오늘도 고마움을 기록해요.";
+  const displayName = user?.name || t("profile_default_name");
+  const displayBio = user?.bio || t("profile_default_bio");
+  const currentLangNative = LANGUAGE_OPTIONS.find((o) => o.code === lang)?.native ?? "한국어";
 
   // Custom toggle component matching reference screenshots
   function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -195,10 +202,10 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col">
-      {/* Header — from reference: centered serif title + edit button */}
+      {/* Header */}
       <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
         <div />
-        <h1 className="text-center font-serif text-[30px] font-bold leading-none text-[#1f2a3d]">내 프로필</h1>
+        <h1 className="text-center font-serif text-[30px] font-bold leading-none text-[#1f2a3d]">{t("profile_title")}</h1>
         <button
           type="button"
           onClick={openEditProfile}
@@ -209,7 +216,7 @@ export default function ProfilePage() {
       </header>
 
       <div className="space-y-4 px-5 pb-8">
-        {/* Avatar Section — from reference screenshot 003 */}
+        {/* Avatar Section */}
         <div className="flex flex-col items-center gap-2 py-3">
           <div className="relative">
             <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-primary bg-secondary">
@@ -219,19 +226,18 @@ export default function ProfilePage() {
                 <User className="h-12 w-12 text-primary/60" />
               )}
             </div>
-            {/* Online dot */}
             <span className="absolute bottom-1 right-1 h-5 w-5 rounded-full border-[3px] border-background bg-green-400" />
           </div>
           <div className="text-center">
             <h2 className="text-xl font-bold text-slate-900">@{displayName}</h2>
             <p className="mt-1 italic text-slate-600">{displayBio}</p>
             <span className="mt-2 inline-flex items-center rounded-full bg-primary/30 px-3 py-1 text-xs font-medium text-slate-800">
-              활동 중
+              {t("profile_status_active")}
             </span>
           </div>
         </div>
 
-        {/* Stats Grid — 3 columns, exact from reference colors */}
+        {/* Stats Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-[#9aa7ba]" />
@@ -239,32 +245,31 @@ export default function ProfilePage() {
         ) : (
           <div className="grid grid-cols-3 gap-4">
             {[
-              { value: totalSent, label: "보낸 감사" },
-              { value: 0, label: "받은 감사" },
-              { value: streakDays, label: "연속일" },
+              { value: totalSent, labelKey: "profile_stats_sent" },
+              { value: 0, labelKey: "profile_stats_received" },
+              { value: streakDays, labelKey: "profile_stats_streak" },
             ].map((stat) => (
               <div
-                key={stat.label}
+                key={stat.labelKey}
                 className="flex flex-col items-center rounded-xl border border-primary/10 bg-white p-4 shadow-sm"
               >
                 <span className="text-xl font-bold text-slate-900">{stat.value}</span>
                 <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  {stat.label}
+                  {t(stat.labelKey)}
                 </span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Notification Settings — from reference screenshots 003-004 */}
+        {/* Notification Settings */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">알림</p>
+          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_notifications")}</p>
           <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
-            {/* New letter */}
             <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                <span className="text-sm font-medium text-[#334255]">새 편지 수신 동의</span>
+                <span className="text-sm font-medium text-[#334255]">{t("profile_notif_new_letter")}</span>
               </div>
               <Toggle
                 checked={newLetterOptIn}
@@ -272,11 +277,10 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Marketing */}
             <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
               <div className="flex items-center gap-3">
                 <Megaphone className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                <span className="text-sm font-medium text-[#334255]">마케팅 수신 동의</span>
+                <span className="text-sm font-medium text-[#334255]">{t("profile_notif_marketing")}</span>
               </div>
               <Toggle
                 checked={marketingOptIn}
@@ -284,11 +288,10 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Delivery reminder */}
             <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                <span className="text-sm font-medium text-[#334255]">전송 리마인더 동의</span>
+                <span className="text-sm font-medium text-[#334255]">{t("profile_notif_delivery")}</span>
               </div>
               <Toggle
                 checked={deliveryOptIn}
@@ -308,7 +311,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-[#334255]">매일 리마인더 시간</span>
+                  <span className="text-sm font-medium text-[#334255]">{t("profile_notif_reminder_time")}</span>
                 </div>
                 <span className="rounded-full bg-[#fef3f6] px-3 py-1 text-sm text-[#7d8aa0]">{dailyReminderTime}</span>
               </button>
@@ -337,9 +340,7 @@ export default function ProfilePage() {
                       >
                         {time}
                         {dailyReminderTime === time && (
-                          <svg className="h-4 w-4 text-[#efb8c2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
+                          <Check className="h-4 w-4 text-[#efb8c2]" />
                         )}
                       </button>
                     ))}
@@ -350,18 +351,69 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Security Section — from reference */}
+        {/* Settings Section — Language */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">보안</p>
+          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_settings")}</p>
+          <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setLangMenuOpen(!langMenuOpen)}
+                className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
+              >
+                <div className="flex items-center gap-3">
+                  <Globe className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                  <span className="text-sm font-medium text-[#334255]">{t("profile_language")}</span>
+                </div>
+                <span className="rounded-full bg-[#fef3f6] px-3 py-1 text-sm text-[#7d8aa0]">{currentLangNative}</span>
+              </button>
+
+              {langMenuOpen && (
+                <>
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-20"
+                    onClick={() => setLangMenuOpen(false)}
+                  />
+                  <div className="absolute left-2 right-2 top-[64px] z-30 overflow-auto rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
+                    {LANGUAGE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.code}
+                        type="button"
+                        onClick={() => {
+                          setLang(opt.code);
+                          setLangMenuOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm",
+                          lang === opt.code ? "bg-[#fff3f6] text-[#2f3f57] font-medium" : "text-[#60718a]"
+                        )}
+                      >
+                        {opt.native}
+                        {lang === opt.code && (
+                          <Check className="h-4 w-4 text-[#efb8c2]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Security Section */}
+        <section>
+          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_security")}</p>
           <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
             <button
               type="button"
-              onClick={() => toast.info("계정 연동 기능은 준비 중입니다.")}
+              onClick={() => toast.info(t("profile_info_link_soon"))}
               className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
             >
               <div className="flex items-center gap-3">
                 <Link2 className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                <span className="text-sm font-medium text-[#334255]">계정 연동</span>
+                <span className="text-sm font-medium text-[#334255]">{t("profile_security_link")}</span>
               </div>
               <ChevronRight className="h-4 w-4 text-[#a6b2c5]" />
             </button>
@@ -373,39 +425,37 @@ export default function ProfilePage() {
             >
               <div className="flex items-center gap-3">
                 <Shield className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
-                <span className="text-sm font-medium text-[#334255]">차단 목록</span>
+                <span className="text-sm font-medium text-[#334255]">{t("profile_security_block")}</span>
               </div>
               <ChevronRight className="h-4 w-4 text-[#a6b2c5]" />
             </button>
-
           </div>
         </section>
 
-        {/* Logout — standalone at bottom */}
+        {/* Logout */}
         <button
           type="button"
           onClick={handleLogout}
           className="flex w-full items-center justify-center gap-2 rounded-full border border-[#f1d6de] py-3 text-sm font-medium text-[#8d99ac] transition-colors hover:bg-[#fff3f6]"
         >
           <LogOut className="h-4 w-4" strokeWidth={1.5} />
-          로그아웃
+          {t("profile_logout")}
         </button>
       </div>
 
-      {/* Edit Profile Modal — from reference screenshot */}
+      {/* Edit Profile Modal */}
       {editOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
           <div className="w-full max-w-[360px] rounded-[22px] bg-card p-5 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="font-serif text-xl font-bold">프로필 수정</h3>
+              <h3 className="font-serif text-xl font-bold">{t("profile_edit_title")}</h3>
               <button type="button" onClick={() => setEditOpen(false)}>
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
             <div className="space-y-4">
-              {/* Profile Photo */}
               <div>
-                <p className="mb-2 text-[13px] font-bold text-primary">프로필 사진</p>
+                <p className="mb-2 text-[13px] font-bold text-primary">{t("profile_edit_photo")}</p>
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-primary bg-secondary">
                     {editAvatarPreview ? (
@@ -415,7 +465,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <label className="cursor-pointer rounded-full bg-muted px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/80">
-                    사진 업로드
+                    {t("profile_edit_upload")}
                     <input
                       type="file"
                       accept="image/*"
@@ -426,61 +476,57 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Nickname */}
               <div>
-                <p className="mb-2 text-[13px] font-bold text-primary">닉네임</p>
+                <p className="mb-2 text-[13px] font-bold text-primary">{t("profile_edit_nickname")}</p>
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   maxLength={20}
-                  placeholder="닉네임"
+                  placeholder={t("profile_edit_nickname_ph")}
                   className="w-full rounded-xl bg-muted px-4 py-2.5 text-sm outline-none"
                 />
               </div>
 
-              {/* Status message */}
               <div>
-                <p className="mb-2 text-[13px] font-bold text-primary">상태 메시지</p>
+                <p className="mb-2 text-[13px] font-bold text-primary">{t("profile_edit_status")}</p>
                 <input
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
                   maxLength={60}
-                  placeholder="오늘도 고마움을 기록해요."
+                  placeholder={t("profile_edit_status_ph")}
                   className="w-full rounded-xl bg-muted px-4 py-2.5 text-sm outline-none"
                 />
               </div>
 
-              {/* Save button */}
               <button
                 onClick={handleSaveProfile}
                 disabled={saving || !editName.trim()}
                 className="mt-1 w-full rounded-full bg-primary py-3 text-base font-bold disabled:opacity-50"
               >
                 {saving && <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />}
-                저장
+                {t("common_save")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Block List Modal — #14 */}
+      {/* Block List Modal */}
       {blockModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
           <div className="w-full max-w-[360px] rounded-2xl bg-card p-4 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold">차단 목록</h3>
+              <h3 className="font-serif text-lg font-bold">{t("profile_block_title")}</h3>
               <button type="button" onClick={() => setBlockModalOpen(false)}>
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
 
-            {/* Add input */}
             <div className="mb-3 flex gap-2">
               <input
                 value={blockInput}
                 onChange={(e) => setBlockInput(e.target.value)}
-                placeholder="사용자 이름"
+                placeholder={t("profile_block_ph")}
                 className="flex-1 rounded-xl bg-muted px-3 py-2 text-sm outline-none"
                 onKeyDown={(e) => e.key === "Enter" && handleAddBlock()}
               />
@@ -490,11 +536,10 @@ export default function ProfilePage() {
                 disabled={!blockInput.trim()}
                 className="rounded-xl"
               >
-                추가
+                {t("common_add")}
               </Button>
             </div>
 
-            {/* List */}
             {blockLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -512,14 +557,14 @@ export default function ProfilePage() {
                       onClick={() => handleRemoveBlock(u.name)}
                       className="text-sm font-medium text-rose-500"
                     >
-                      제거
+                      {t("profile_block_remove")}
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                차단된 사용자가 없습니다.
+                {t("profile_block_empty")}
               </p>
             )}
           </div>

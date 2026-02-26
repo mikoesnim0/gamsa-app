@@ -10,11 +10,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, hashPhone } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n-context";
 import { pickContacts, isContactsSupported } from "@/lib/contacts";
 import type { Friend } from "@/types";
 import type { PhoneMatchResult } from "@/lib/api/friends";
 
-// Canvas helpers for QR invite card generation
 function roundedRectPath(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, r: number
@@ -31,6 +31,7 @@ function roundedRectPath(
 
 export default function FriendsPage() {
   const { firebaseUser, user } = useAuth();
+  const { t } = useI18n();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +44,6 @@ export default function FriendsPage() {
   const [contactMatches, setContactMatches] = useState<PhoneMatchResult[]>([]);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
-
-  // Tab
   const [activeTab, setActiveTab] = useState<"friends" | "requests">("friends");
 
   useEffect(() => {
@@ -65,7 +64,6 @@ export default function FriendsPage() {
 
   const inviteCode = user?.inviteCode ?? "---";
 
-  // Filter friends by search query
   const filteredFriends = useMemo(() => {
     if (!searchQuery.trim()) return friends;
     const q = searchQuery.trim().toLowerCase();
@@ -75,14 +73,13 @@ export default function FriendsPage() {
     });
   }, [friends, searchQuery]);
 
-  // Check if input looks like invite code
   const isInviteCode = /^[A-Z0-9]{3,8}-\d{2,4}$/i.test(searchQuery.trim());
 
   function handleCopyCode() {
     navigator.clipboard.writeText(inviteCode).then(() => {
-      toast.success("초대 코드가 복사되었습니다!");
+      toast.success(t("friends_toast_code_copied"));
     }).catch(() => {
-      toast.success(`초대 코드: ${inviteCode}`);
+      toast.success(`${t("friends_invite_code")}: ${inviteCode}`);
     });
   }
 
@@ -93,11 +90,11 @@ export default function FriendsPage() {
     setAddingFriend(true);
     try {
       await api.friends.sendFriendRequestByCode(firebaseUser.uid, code);
-      toast.success("친구 요청을 보냈습니다!");
+      toast.success(t("friends_toast_request_sent"));
       setSearchQuery("");
       setFriendCodeInput("");
     } catch {
-      toast.error("친구 요청에 실패했습니다. 코드를 확인해주세요.");
+      toast.error(t("friends_error_request"));
     } finally {
       setAddingFriend(false);
     }
@@ -108,12 +105,11 @@ export default function FriendsPage() {
     try {
       await api.friends.acceptFriendRequest(firebaseUser.uid, id);
       setPendingRequests((prev) => prev.filter((r) => r.id !== id));
-      toast.success("친구 요청을 수락했습니다!");
-      // Refresh friends
+      toast.success(t("friends_toast_accepted"));
       const updatedFriends = await api.friends.getFriends(firebaseUser.uid);
       setFriends(updatedFriends);
     } catch {
-      toast.error("요청 처리에 실패했습니다.");
+      toast.error(t("friends_error_process"));
     }
   }
 
@@ -122,25 +118,23 @@ export default function FriendsPage() {
     try {
       await api.friends.rejectFriendRequest(firebaseUser.uid, id);
       setPendingRequests((prev) => prev.filter((r) => r.id !== id));
-      toast("친구 요청을 거절했습니다.");
+      toast(t("friends_toast_rejected"));
     } catch {
-      toast.error("요청 처리에 실패했습니다.");
+      toast.error(t("friends_error_process"));
     }
   }
 
-  // Find friends from device contacts
   const handleFindFromContacts = useCallback(async () => {
     if (!firebaseUser) return;
     setContactSearching(true);
     try {
       const contacts = await pickContacts({ multiple: true });
       if (!contacts || contacts.length === 0) {
-        toast.info("선택된 연락처가 없습니다.");
+        toast.info(t("friends_info_no_contacts"));
         setContactSearching(false);
         return;
       }
 
-      // Collect all phone numbers and hash them
       const allPhones: string[] = [];
       for (const c of contacts) {
         for (const phone of c.phones) {
@@ -151,7 +145,6 @@ export default function FriendsPage() {
       const hashes = await Promise.all(allPhones.map((p) => hashPhone(p)));
       const uniqueHashes = [...new Set(hashes)];
 
-      // Find matching users
       const matches = await api.friends.findUsersByPhoneHashes(
         firebaseUser.uid,
         uniqueHashes
@@ -161,34 +154,32 @@ export default function FriendsPage() {
       setContactModalOpen(true);
 
       if (matches.length === 0) {
-        toast.info("아직 감사노트를 사용하는 연락처가 없어요.");
+        toast.info(t("friends_info_no_matches"));
       }
     } catch {
-      toast.error("연락처를 불러올 수 없습니다.");
+      toast.error(t("friends_error_load_contacts"));
     } finally {
       setContactSearching(false);
     }
-  }, [firebaseUser]);
+  }, [firebaseUser, t]);
 
   async function handleSendRequestFromContact(targetUserId: string) {
     if (!firebaseUser) return;
     setSendingRequestTo(targetUserId);
     try {
       await api.friends.sendFriendRequest(firebaseUser.uid, targetUserId);
-      toast.success("친구 요청을 보냈습니다!");
+      toast.success(t("friends_toast_request_sent"));
       setContactMatches((prev) => prev.filter((m) => m.userId !== targetUserId));
     } catch {
-      toast.error("친구 요청에 실패했습니다.");
+      toast.error(t("friends_error_send_request"));
     } finally {
       setSendingRequestTo(null);
     }
   }
 
-  // Generate invite card image and download — from reference canvas pattern
   const saveQrPicture = useCallback(async () => {
     setQrSaving(true);
     try {
-      // Fetch QR code image from external API — encode HTTPS URL for universal scanner compatibility
       const inviteLink = `https://gamsa-app.vercel.app/invite/${encodeURIComponent(inviteCode)}`;
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(inviteLink)}`;
 
@@ -209,11 +200,9 @@ export default function FriendsPage() {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No canvas context");
 
-      // Background
       ctx.fillStyle = "#f4ebe1";
       ctx.fillRect(0, 0, 1080, 1440);
 
-      // Rounded card with shadow
       ctx.shadowColor = "rgba(70, 50, 35, 0.15)";
       ctx.shadowBlur = 24;
       ctx.shadowOffsetY = 8;
@@ -224,28 +213,23 @@ export default function FriendsPage() {
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
 
-      // Title "Gratella"
       ctx.textAlign = "center";
       ctx.fillStyle = "#5d4a46";
       ctx.font = "700 84px 'Noto Serif', serif";
       ctx.fillText("Gratella", 540, 220);
 
-      // Subtitle
       ctx.fillStyle = "#9a827a";
       ctx.font = "500 40px 'Noto Sans', sans-serif";
-      ctx.fillText("감사를 나누는 공간", 540, 292);
+      ctx.fillText(t("friends_invite_card_subtitle"), 540, 292);
 
-      // Pink accent line
       ctx.fillStyle = "#efb8c2";
       roundedRectPath(ctx, 490, 325, 100, 8, 6);
       ctx.fill();
 
-      // QR container background
       roundedRectPath(ctx, 272, 388, 536, 536, 46);
       ctx.fillStyle = "#f2f2f2";
       ctx.fill();
 
-      // Inner white container with shadow
       ctx.shadowColor = "rgba(0,0,0,0.18)";
       ctx.shadowBlur = 18;
       ctx.shadowOffsetY = 8;
@@ -256,22 +240,18 @@ export default function FriendsPage() {
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
 
-      // Draw QR image
       ctx.drawImage(qrImg, 431, 545, 218, 218);
       URL.revokeObjectURL(qrUrlLocal);
 
-      // Instructions
       ctx.fillStyle = "#6f5a54";
       ctx.font = "500 50px 'Noto Sans', sans-serif";
-      ctx.fillText("QR 코드를 스캔해서", 540, 1020);
-      ctx.fillText("친구를 추가해보세요", 540, 1090);
+      ctx.fillText(t("friends_invite_card_scan1"), 540, 1020);
+      ctx.fillText(t("friends_invite_card_scan2"), 540, 1090);
 
-      // Invite code
       ctx.fillStyle = "#5d4a46";
       ctx.font = "700 36px 'Noto Serif', serif";
       ctx.fillText(inviteCode, 540, 1170);
 
-      // Decorative dots
       ["#efb8c2", "#f4d3db", "#f1dee3"].forEach((dot, idx) => {
         ctx.beginPath();
         ctx.fillStyle = dot;
@@ -279,7 +259,6 @@ export default function FriendsPage() {
         ctx.fill();
       });
 
-      // Download
       const outBlob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/png")
       );
@@ -292,20 +271,19 @@ export default function FriendsPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(outUrl);
-      toast.success("초대 카드가 저장되었습니다!");
+      toast.success(t("friends_toast_card_saved"));
     } catch {
-      toast.error("이미지 저장에 실패했습니다.");
+      toast.error(t("friends_error_save_image"));
     } finally {
       setQrSaving(false);
     }
-  }, [inviteCode, user?.name]);
+  }, [inviteCode, user?.name, t]);
 
   return (
     <div className="flex flex-col">
-      {/* Header — from reference: centered serif, QR on right */}
       <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
         <div />
-        <h1 className="text-center font-serif text-[30px] font-bold leading-none">커뮤니티</h1>
+        <h1 className="text-center font-serif text-[30px] font-bold leading-none">{t("friends_title")}</h1>
         <button
           type="button"
           onClick={() => setQrOpen(true)}
@@ -316,27 +294,20 @@ export default function FriendsPage() {
       </header>
 
       <div className="mx-auto w-full max-w-[390px] px-4 pb-8">
-        {/* Tabs — from reference */}
         <div className="mb-4 flex text-center text-[15px] font-semibold text-muted-foreground">
           <button
             type="button"
             onClick={() => setActiveTab("friends")}
-            className={cn(
-              "w-1/2 pb-2",
-              activeTab === "friends" ? "text-foreground" : ""
-            )}
+            className={cn("w-1/2 pb-2", activeTab === "friends" ? "text-foreground" : "")}
           >
-            친구
+            {t("friends_tab_friends")}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("requests")}
-            className={cn(
-              "w-1/2 pb-2",
-              activeTab === "requests" ? "text-foreground" : ""
-            )}
+            className={cn("w-1/2 pb-2", activeTab === "requests" ? "text-foreground" : "")}
           >
-            요청
+            {t("friends_tab_requests")}
             {pendingRequests.length > 0 && (
               <span className="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
                 {pendingRequests.length}
@@ -347,18 +318,16 @@ export default function FriendsPage() {
 
         {activeTab === "friends" && (
           <div className="space-y-3">
-            {/* Search bar — from reference: rounded-full */}
             <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-3">
               <Search className="h-5 w-5 text-primary" strokeWidth={1.5} />
               <input
-                placeholder="친구 찾기..."
+                placeholder={t("friends_placeholder_search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full border-0 bg-transparent text-[17px] text-foreground outline-none ring-0 placeholder:text-muted-foreground"
               />
             </div>
 
-            {/* If invite code detected, show send request */}
             {isInviteCode && (
               <button
                 type="button"
@@ -366,14 +335,11 @@ export default function FriendsPage() {
                 disabled={addingFriend}
                 className="w-full rounded-full bg-primary px-4 py-2.5 text-[14px] font-semibold text-foreground"
               >
-                {addingFriend ? (
-                  <Loader2 className="inline mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                친구 요청 보내기
+                {addingFriend ? <Loader2 className="inline mr-2 h-4 w-4 animate-spin" /> : null}
+                {t("friends_send_request")}
               </button>
             )}
 
-            {/* Invite Code Card — from reference screenshot 002 */}
             <div className="rounded-[30px] bg-secondary px-4 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -381,7 +347,7 @@ export default function FriendsPage() {
                     <Share2 className="h-5 w-5 text-primary-foreground" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">초대 코드</p>
+                    <p className="text-xs text-muted-foreground">{t("friends_invite_code")}</p>
                     <p className="font-serif text-[28px] font-bold leading-none">{inviteCode}</p>
                   </div>
                 </div>
@@ -390,12 +356,11 @@ export default function FriendsPage() {
                   onClick={handleCopyCode}
                   className="rounded-full bg-muted px-5 py-2 text-[16px] font-bold text-primary"
                 >
-                  복사
+                  {t("common_copy")}
                 </button>
               </div>
             </div>
 
-            {/* Find from Contacts */}
             {isContactsSupported() && (
               <button
                 type="button"
@@ -411,17 +376,12 @@ export default function FriendsPage() {
                   )}
                 </div>
                 <div className="text-left">
-                  <p className="text-[15px] font-bold text-foreground">
-                    연락처에서 친구 찾기
-                  </p>
-                  <p className="text-[12px] text-muted-foreground">
-                    내 연락처에서 감사노트 사용자를 찾아보세요
-                  </p>
+                  <p className="text-[15px] font-bold text-foreground">{t("friends_find_contacts")}</p>
+                  <p className="text-[12px] text-muted-foreground">{t("friends_find_contacts_desc")}</p>
                 </div>
               </button>
             )}
 
-            {/* Friends List */}
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -443,49 +403,23 @@ export default function FriendsPage() {
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="truncate font-serif text-[20px] font-bold leading-none">
-                              {name}
-                            </p>
-                            {/* Linked icons — active when connected */}
-                            <Phone
-                              className={cn(
-                                "h-3.5 w-3.5",
-                                hasPhone ? "text-[#efb8c2]" : "text-muted-foreground/30"
-                              )}
-                              strokeWidth={1.5}
-                            />
-                            <MessageCircle
-                              className={cn(
-                                "h-3.5 w-3.5",
-                                hasKakao ? "text-[#FAE100]" : "text-muted-foreground/30"
-                              )}
-                              strokeWidth={1.5}
-                            />
+                            <p className="truncate font-serif text-[20px] font-bold leading-none">{name}</p>
+                            <Phone className={cn("h-3.5 w-3.5", hasPhone ? "text-[#efb8c2]" : "text-muted-foreground/30")} strokeWidth={1.5} />
+                            <MessageCircle className={cn("h-3.5 w-3.5", hasKakao ? "text-[#FAE100]" : "text-muted-foreground/30")} strokeWidth={1.5} />
                           </div>
-                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            @{friend.friendUserId.slice(0, 8)}
-                          </p>
-                          {bio && (
-                            <p className="mt-0.5 truncate text-[12px] text-muted-foreground/80">
-                              {bio}
-                            </p>
-                          )}
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">@{friend.friendUserId.slice(0, 8)}</p>
+                          {bio && <p className="mt-0.5 truncate text-[12px] text-muted-foreground/80">{bio}</p>}
                         </div>
                       </div>
-
-                      {/* Action buttons */}
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          className="rounded-full bg-card px-3 py-2 text-center text-[13px] font-semibold text-muted-foreground"
-                        >
-                          좋아요
+                        <button type="button" className="rounded-full bg-card px-3 py-2 text-center text-[13px] font-semibold text-muted-foreground">
+                          {t("friends_action_like")}
                         </button>
                         <Link
                           href={`/write?target=${encodeURIComponent(name)}`}
                           className="rounded-full bg-primary px-3 py-2 text-center text-[13px] font-semibold text-foreground"
                         >
-                          편지 쓰기
+                          {t("friends_action_write")}
                         </Link>
                       </div>
                     </article>
@@ -494,11 +428,11 @@ export default function FriendsPage() {
               </div>
             ) : searchQuery.trim() ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                &quot;{searchQuery.trim()}&quot; 검색 결과가 없습니다.
+                {t("friends_search_no_results", { query: searchQuery.trim() })}
               </p>
             ) : (
               <div className="rounded-[20px] bg-muted px-3 py-4 text-center">
-                <p className="text-sm text-muted-foreground">친구가 없습니다.</p>
+                <p className="text-sm text-muted-foreground">{t("friends_empty")}</p>
               </div>
             )}
           </div>
@@ -512,10 +446,7 @@ export default function FriendsPage() {
               </div>
             ) : pendingRequests.length > 0 ? (
               pendingRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="flex items-center justify-between rounded-[20px] bg-muted px-3 py-3"
-                >
+                <div key={request.id} className="flex items-center justify-between rounded-[20px] bg-muted px-3 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-primary/20 text-primary font-serif">
@@ -548,19 +479,19 @@ export default function FriendsPage() {
               ))
             ) : (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                받은 친구 요청이 없습니다.
+                {t("friends_requests_empty")}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* QR Modal — from reference with save feature */}
+      {/* QR Modal */}
       {qrOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4">
           <div className="w-full max-w-[360px] rounded-[26px] bg-card p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold text-[#1f2a3d]">내 QR 코드</h3>
+              <h3 className="font-serif text-lg font-bold text-[#1f2a3d]">{t("friends_qr_title")}</h3>
               <button type="button" onClick={() => setQrOpen(false)}>
                 <X className="h-5 w-5 text-[#8d99ac]" />
               </button>
@@ -575,45 +506,33 @@ export default function FriendsPage() {
                   bgColor="#ffffff"
                 />
               </div>
-              <p className="text-center text-sm text-[#8d99ac]">
-                친구가 이 QR 코드를 스캔하면 바로 친구 추가가 됩니다.
-              </p>
+              <p className="text-center text-sm text-[#8d99ac]">{t("friends_qr_desc")}</p>
               <div className="flex items-center gap-2">
                 <span className="font-serif text-[22px] font-bold text-[#1f2a3d]">{inviteCode}</span>
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  className="rounded-full bg-[#f2f2f3] px-4 py-1.5 text-[14px] font-bold text-[#efb8c2]"
-                >
-                  복사
+                <button type="button" onClick={handleCopyCode} className="rounded-full bg-[#f2f2f3] px-4 py-1.5 text-[14px] font-bold text-[#efb8c2]">
+                  {t("common_copy")}
                 </button>
               </div>
-              {/* Save as image button */}
               <button
                 type="button"
                 onClick={saveQrPicture}
                 disabled={qrSaving}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#efb8c2] py-3 text-[15px] font-bold text-white disabled:opacity-60"
               >
-                {qrSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" strokeWidth={2} />
-                )}
-                초대 카드 저장
+                {qrSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" strokeWidth={2} />}
+                {t("friends_qr_save")}
               </button>
             </div>
           </div>
         </div>
       )}
+
       {/* Contact Matches Modal */}
       {contactModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 sm:items-center">
           <div className="w-full max-w-[400px] rounded-t-[26px] bg-card p-5 shadow-xl sm:rounded-[26px]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold text-[#1f2a3d]">
-                연락처에서 찾은 친구
-              </h3>
+              <h3 className="font-serif text-lg font-bold text-[#1f2a3d]">{t("friends_contacts_title")}</h3>
               <button type="button" onClick={() => setContactModalOpen(false)}>
                 <X className="h-5 w-5 text-[#8d99ac]" />
               </button>
@@ -622,19 +541,12 @@ export default function FriendsPage() {
             {contactMatches.length > 0 ? (
               <div className="max-h-[50vh] space-y-2 overflow-y-auto">
                 {contactMatches.map((match) => (
-                  <div
-                    key={match.userId}
-                    className="flex items-center justify-between rounded-[20px] bg-muted px-3 py-3"
-                  >
+                  <div key={match.userId} className="flex items-center justify-between rounded-[20px] bg-muted px-3 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/20 text-primary font-serif">
-                          {match.name[0]}
-                        </AvatarFallback>
+                        <AvatarFallback className="bg-primary/20 text-primary font-serif">{match.name[0]}</AvatarFallback>
                       </Avatar>
-                      <p className="font-serif text-[16px] font-bold">
-                        {match.name}
-                      </p>
+                      <p className="font-serif text-[16px] font-bold">{match.name}</p>
                     </div>
                     <button
                       type="button"
@@ -642,24 +554,16 @@ export default function FriendsPage() {
                       disabled={sendingRequestTo === match.userId}
                       className="flex items-center gap-1 rounded-full bg-[#efb8c2] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-60"
                     >
-                      {sendingRequestTo === match.userId ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <UserPlus className="h-3.5 w-3.5" strokeWidth={2} />
-                      )}
-                      추가
+                      {sendingRequestTo === match.userId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" strokeWidth={2} />}
+                      {t("common_add")}
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="py-8 text-center">
-                <p className="text-sm text-[#8d99ac]">
-                  아직 감사노트를 사용하는 연락처가 없어요.
-                </p>
-                <p className="mt-2 text-[12px] text-[#8d99ac]">
-                  초대 코드를 공유해서 친구를 초대해보세요!
-                </p>
+                <p className="text-sm text-[#8d99ac]">{t("friends_contacts_no_matches")}</p>
+                <p className="mt-2 text-[12px] text-[#8d99ac]">{t("friends_contacts_invite_hint")}</p>
               </div>
             )}
           </div>
