@@ -23,6 +23,7 @@ import type {
   Notification,
   Friend,
   BlockedUser,
+  SharedLetter,
 } from "@/types";
 
 type FirestoreData<T> = Omit<T, "id">;
@@ -72,3 +73,8 @@ export const blockedCol = (userId: string) =>
   typedCollection<BlockedUser>(`users/${userId}/blocked`);
 export const blockedDoc = (userId: string, targetName: string) =>
   typedDoc<BlockedUser>(`users/${userId}/blocked`, targetName);
+
+export const sharedLettersCol = () =>
+  typedCollection<SharedLetter>("shared_letters");
+export const sharedLetterDoc = (id: string) =>
+  typedDoc<SharedLetter>("shared_letters", id);

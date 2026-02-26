@@ -126,14 +126,9 @@ export default function FriendsPage() {
   const saveQrPicture = useCallback(async () => {
     setQrSaving(true);
     try {
-      // Fetch QR code image from external API
-      const qrPayload = JSON.stringify({
-        type: "friend_invite",
-        viewer: user?.name ?? "guest",
-        code: inviteCode,
-        link: `${window.location.origin}/?invite=${encodeURIComponent(inviteCode)}`,
-      });
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrPayload)}`;
+      // Fetch QR code image from external API — encode HTTPS URL for universal scanner compatibility
+      const inviteLink = `https://gamsa-app.vercel.app/invite/${encodeURIComponent(inviteCode)}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(inviteLink)}`;
 
       const res = await fetch(qrUrl, { cache: "no-store" });
       if (!res.ok) throw new Error("QR fetch failed");
@@ -472,7 +467,7 @@ export default function FriendsPage() {
             <div className="flex flex-col items-center gap-4">
               <div className="mx-auto rounded-[12px] bg-white p-4 shadow-sm">
                 <QRCodeSVG
-                  value={`gamsa://invite/${inviteCode}`}
+                  value={`https://gamsa-app.vercel.app/invite/${encodeURIComponent(inviteCode)}`}
                   size={240}
                   level="M"
                   fgColor="#211113"

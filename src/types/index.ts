@@ -203,6 +203,22 @@ export interface BlockedUser {
 
 // ─── Delivery Options ───────────────────────────────────
 
+// ─── Shared Letter (공유 편지) ──────────────────────────
+
+export interface SharedLetter {
+  id: string;
+  entryId: string;
+  authorId: string;
+  authorName: string;
+  targetName: string;
+  content: string;
+  title: string | null;
+  emotionTags: EmotionTag[];
+  imageUrl: string | null;
+  originalCreatedAt: Timestamp;
+  sharedAt: Timestamp;
+}
+
 export type DeliveryOption = "send_now" | "schedule" | "private_vault";
 
 export interface DeliverySettings {

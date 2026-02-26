@@ -15,6 +15,7 @@ import * as notifications from "./notifications";
 import * as friends from "./friends";
 import * as streak from "./streak";
 import * as blocked from "./blocked";
+import * as share from "./share";
 
 export const api = {
   gratitude,
@@ -24,4 +25,5 @@ export const api = {
   friends,
   streak,
   blocked,
+  share,
 } as const;
