@@ -13,15 +13,8 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { targetsCol, targetDoc } from "@/lib/firebase/collections";
+import { hashPhone } from "@/lib/utils";
 import type { Target, TargetCreate } from "@/types";
-
-async function hashPhone(phone: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(phone.replace(/[^0-9]/g, ""));
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 export async function createTarget(
   userId: string,

@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, Copy, Share2, X, Check, QrCode, Loader2, Phone, MessageCircle, Download } from "lucide-react";
+import { Search, Copy, Share2, X, Check, QrCode, Loader2, Phone, MessageCircle, Download, BookUser, UserPlus } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, hashPhone } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { pickContacts, isContactsSupported } from "@/lib/contacts";
 import type { Friend } from "@/types";
+import type { PhoneMatchResult } from "@/lib/api/friends";
 
 // Canvas helpers for QR invite card generation
 function roundedRectPath(
@@ -37,6 +39,10 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [friendCodeInput, setFriendCodeInput] = useState("");
   const [addingFriend, setAddingFriend] = useState(false);
+  const [contactSearching, setContactSearching] = useState(false);
+  const [contactMatches, setContactMatches] = useState<PhoneMatchResult[]>([]);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
 
   // Tab
   const [activeTab, setActiveTab] = useState<"friends" | "requests">("friends");
@@ -119,6 +125,62 @@ export default function FriendsPage() {
       toast("친구 요청을 거절했습니다.");
     } catch {
       toast.error("요청 처리에 실패했습니다.");
+    }
+  }
+
+  // Find friends from device contacts
+  const handleFindFromContacts = useCallback(async () => {
+    if (!firebaseUser) return;
+    setContactSearching(true);
+    try {
+      const contacts = await pickContacts({ multiple: true });
+      if (!contacts || contacts.length === 0) {
+        toast.info("선택된 연락처가 없습니다.");
+        setContactSearching(false);
+        return;
+      }
+
+      // Collect all phone numbers and hash them
+      const allPhones: string[] = [];
+      for (const c of contacts) {
+        for (const phone of c.phones) {
+          allPhones.push(phone);
+        }
+      }
+
+      const hashes = await Promise.all(allPhones.map((p) => hashPhone(p)));
+      const uniqueHashes = [...new Set(hashes)];
+
+      // Find matching users
+      const matches = await api.friends.findUsersByPhoneHashes(
+        firebaseUser.uid,
+        uniqueHashes
+      );
+
+      setContactMatches(matches);
+      setContactModalOpen(true);
+
+      if (matches.length === 0) {
+        toast.info("아직 감사노트를 사용하는 연락처가 없어요.");
+      }
+    } catch {
+      toast.error("연락처를 불러올 수 없습니다.");
+    } finally {
+      setContactSearching(false);
+    }
+  }, [firebaseUser]);
+
+  async function handleSendRequestFromContact(targetUserId: string) {
+    if (!firebaseUser) return;
+    setSendingRequestTo(targetUserId);
+    try {
+      await api.friends.sendFriendRequest(firebaseUser.uid, targetUserId);
+      toast.success("친구 요청을 보냈습니다!");
+      setContactMatches((prev) => prev.filter((m) => m.userId !== targetUserId));
+    } catch {
+      toast.error("친구 요청에 실패했습니다.");
+    } finally {
+      setSendingRequestTo(null);
     }
   }
 
@@ -333,6 +395,32 @@ export default function FriendsPage() {
               </div>
             </div>
 
+            {/* Find from Contacts */}
+            {isContactsSupported() && (
+              <button
+                type="button"
+                onClick={handleFindFromContacts}
+                disabled={contactSearching}
+                className="flex w-full items-center gap-3 rounded-[30px] bg-muted px-4 py-4"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#efb8c2]">
+                  {contactSearching ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  ) : (
+                    <BookUser className="h-5 w-5 text-white" strokeWidth={1.5} />
+                  )}
+                </div>
+                <div className="text-left">
+                  <p className="text-[15px] font-bold text-foreground">
+                    연락처에서 친구 찾기
+                  </p>
+                  <p className="text-[12px] text-muted-foreground">
+                    내 연락처에서 감사노트 사용자를 찾아보세요
+                  </p>
+                </div>
+              </button>
+            )}
+
             {/* Friends List */}
             {loading ? (
               <div className="flex items-center justify-center py-8">
@@ -502,6 +590,65 @@ export default function FriendsPage() {
                 초대 카드 저장
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Contact Matches Modal */}
+      {contactModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 sm:items-center">
+          <div className="w-full max-w-[400px] rounded-t-[26px] bg-card p-5 shadow-xl sm:rounded-[26px]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-serif text-lg font-bold text-[#1f2a3d]">
+                연락처에서 찾은 친구
+              </h3>
+              <button type="button" onClick={() => setContactModalOpen(false)}>
+                <X className="h-5 w-5 text-[#8d99ac]" />
+              </button>
+            </div>
+
+            {contactMatches.length > 0 ? (
+              <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+                {contactMatches.map((match) => (
+                  <div
+                    key={match.userId}
+                    className="flex items-center justify-between rounded-[20px] bg-muted px-3 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-primary/20 text-primary font-serif">
+                          {match.name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="font-serif text-[16px] font-bold">
+                        {match.name}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSendRequestFromContact(match.userId)}
+                      disabled={sendingRequestTo === match.userId}
+                      className="flex items-center gap-1 rounded-full bg-[#efb8c2] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-60"
+                    >
+                      {sendingRequestTo === match.userId ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-3.5 w-3.5" strokeWidth={2} />
+                      )}
+                      추가
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <p className="text-sm text-[#8d99ac]">
+                  아직 감사노트를 사용하는 연락처가 없어요.
+                </p>
+                <p className="mt-2 text-[12px] text-[#8d99ac]">
+                  초대 코드를 공유해서 친구를 초대해보세요!
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

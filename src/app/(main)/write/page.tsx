@@ -11,6 +11,7 @@ import { EmotionIcon } from "@/components/ui/emotion-icon";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { pickSingleContact } from "@/lib/contacts";
 import type { EmotionTag, DeliveryOption, Target } from "@/types";
 
 const CROP_VIEW_SIZE = 280;
@@ -124,28 +125,25 @@ export default function WritePage() {
 
   async function handleImportContact() {
     try {
-      if ("contacts" in navigator && (navigator as unknown as { contacts: { select: (props: string[], opts: { multiple: boolean }) => Promise<Array<{ name: string[]; tel: string[] }>> } }).contacts) {
-        const contacts = await (navigator as unknown as { contacts: { select: (props: string[], opts: { multiple: boolean }) => Promise<Array<{ name: string[]; tel: string[] }>> } }).contacts.select(["name", "tel"], { multiple: false });
-        if (contacts.length > 0) {
-          const contact = contacts[0];
-          const name = contact.name?.[0] ?? "";
-          const phone = contact.tel?.[0] ?? null;
-          if (name && firebaseUser) {
-            setCreatingTarget(true);
-            const newTarget = await api.targets.createTarget(firebaseUser.uid, {
-              name,
-              phone,
-              kakaoId: null,
-            });
-            setTargets((prev) => [...prev, newTarget]);
-            setSelectedTarget(newTarget.id);
-            setSearchQuery("");
-            toast.success(`"${name}" 연락처에서 등록되었습니다.`);
-            setCreatingTarget(false);
-          }
-        }
-      } else {
+      const contact = await pickSingleContact();
+      if (!contact) {
         toast.info("연락처 가져오기는 모바일 앱에서 사용할 수 있습니다.");
+        return;
+      }
+      const name = contact.name;
+      const phone = contact.phones[0] ?? null;
+      if (name && firebaseUser) {
+        setCreatingTarget(true);
+        const newTarget = await api.targets.createTarget(firebaseUser.uid, {
+          name,
+          phone,
+          kakaoId: null,
+        });
+        setTargets((prev) => [...prev, newTarget]);
+        setSelectedTarget(newTarget.id);
+        setSearchQuery("");
+        toast.success(`"${name}" 연락처에서 등록되었습니다.`);
+        setCreatingTarget(false);
       }
     } catch {
       toast.error("연락처를 가져올 수 없습니다.");

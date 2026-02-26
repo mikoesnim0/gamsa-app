@@ -16,6 +16,12 @@ import {
 import { friendsCol, friendDoc, usersCol } from "@/lib/firebase/collections";
 import type { Friend } from "@/types";
 
+export interface PhoneMatchResult {
+  userId: string;
+  name: string;
+  phoneHash: string;
+}
+
 export async function getFriends(userId: string): Promise<Friend[]> {
   const q = query(
     friendsCol(userId),
@@ -121,4 +127,44 @@ export async function sendFriendRequestByCode(
   }
 
   await sendFriendRequest(userId, friendUserId);
+}
+
+/**
+ * 전화번호 해시 목록으로 가입된 사용자 찾기
+ * Firestore `in` 쿼리 제한(30개)에 맞춰 배치 처리
+ */
+export async function findUsersByPhoneHashes(
+  currentUserId: string,
+  phoneHashes: string[]
+): Promise<PhoneMatchResult[]> {
+  if (phoneHashes.length === 0) return [];
+
+  // 이미 친구인 사용자 ID 수집
+  const existingFriends = await getFriends(currentUserId);
+  const friendIds = new Set(existingFriends.map((f) => f.friendUserId));
+
+  const results: PhoneMatchResult[] = [];
+
+  // Firestore `in` 쿼리는 최대 30개까지
+  const BATCH_SIZE = 30;
+  for (let i = 0; i < phoneHashes.length; i += BATCH_SIZE) {
+    const batch = phoneHashes.slice(i, i + BATCH_SIZE);
+    const q = query(usersCol(), where("phoneHash", "in", batch));
+    const snap = await getDocs(q);
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      // 본인 제외 + 이미 친구인 사람 제외
+      if (doc.id === currentUserId) continue;
+      if (friendIds.has(doc.id)) continue;
+
+      results.push({
+        userId: doc.id,
+        name: (data as { name?: string }).name ?? "알 수 없음",
+        phoneHash: (data as { phoneHash?: string }).phoneHash ?? "",
+      });
+    }
+  }
+
+  return results;
 }
