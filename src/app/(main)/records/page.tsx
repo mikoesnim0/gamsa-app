@@ -222,7 +222,8 @@ export default function RecordsPage() {
         id: entry.id,
         targetId: entry.targetId ?? "_self",
         name: entry.targetId ? (targetNames[entry.targetId] ?? t("common_unknown")) : t("common_to_self"),
-        preview: entry.content.slice(0, 40) + (entry.content.length > 40 ? "..." : ""),
+        title: entry.title ?? "",
+        preview: entry.content.slice(0, 60) + (entry.content.length > 60 ? "..." : ""),
         timeAgo: getRelativeTime(d),
         tag: entry.emotionTags[0] ? t(EMOTION_KEYS[entry.emotionTags[0]] ?? entry.emotionTags[0]) : "",
       };
@@ -364,34 +365,40 @@ export default function RecordsPage() {
         <div
           ref={isHighlighted ? highlightRef : undefined}
           className={cn(
-            "flex items-center gap-3 rounded-[30px] border px-3 py-3 transition-all duration-700",
+            "flex gap-3 rounded-[28px] border px-4 py-3.5 transition-all duration-700",
             isHighlighted
               ? "border-[#efb8c2] bg-[#fff3f6] shadow-[0_0_0_3px_rgba(239,184,194,0.3)] animate-pulse"
-              : "border-[#ece8ea] bg-[#f2f2f3] hover:bg-[#eeeced]"
+              : "border-[#ece8ea] bg-card hover:bg-muted/30"
           )}
         >
-          <Avatar className="h-12 w-12">
-            <AvatarFallback className="bg-[#edd1b5] font-serif text-lg text-white">
+          <Avatar className="h-11 w-11 shrink-0">
+            <AvatarFallback className="bg-[#edd1b5] font-serif text-base text-white">
               {letter.name[0]}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
-              <p className="truncate font-serif text-[18px] font-bold leading-none text-[#243244]">
+            <div className="flex items-baseline gap-2">
+              <p className="truncate font-serif text-[17px] font-bold leading-none text-[#243244]">
                 {letter.name}
               </p>
-              <span className="ml-2 shrink-0 text-[10px] text-[#a6b0bf]">
-                {letter.timeAgo}
-              </span>
+              {letter.title && (
+                <p className="truncate text-[14px] text-foreground/70">{letter.title}</p>
+              )}
             </div>
-            <p className="mt-1 truncate text-[14px] text-[#718096]">
+            <p className="mt-1.5 truncate text-[13px] leading-[1.5] text-muted-foreground">
               {letter.preview}
             </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+            <span className="text-[12px] text-muted-foreground">
+              {letter.timeAgo}
+            </span>
             {letter.tag && (
-              <p className="mt-1 text-[12px] text-[#93a3bf]">{letter.tag}</p>
+              <span className="rounded-full bg-[#f7efe6] px-2.5 py-0.5 text-[10px] font-semibold text-[#7386a4]">
+                {letter.tag}
+              </span>
             )}
           </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-[#c6ceda]" />
         </div>
       </Link>
     );
@@ -400,7 +407,7 @@ export default function RecordsPage() {
   // Letters list — timeline view
   function LettersList({ letters, emptyText }: { letters: typeof lettersList; emptyText: string }) {
     return letters.length > 0 ? (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {letters.map((letter) => (
           <LetterCard key={letter.id} letter={letter} />
         ))}
