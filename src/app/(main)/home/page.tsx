@@ -119,7 +119,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-5 py-4 backdrop-blur-md">
+      <header className="screen-safe-top sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-5 py-4 backdrop-blur-md">
         <div />
         <h1 className="text-center font-serif text-[30px] font-bold italic leading-none tracking-tight text-primary">
           Gratella

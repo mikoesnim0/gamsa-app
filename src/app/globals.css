@@ -171,9 +171,10 @@
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
   }
-  /* Safe area support for iOS */
-  html {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Safe-area CSS variables */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
   /* Prevent text size adjustment on orientation change */
   html {
@@ -188,4 +189,15 @@
   ::selection {
     background: oklch(0.860 0.061 10.8 / 30%);
   }
+}
+
+/* Safe-area utility classes (matches designer "from" reference) */
+.screen-safe-top {
+  padding-top: var(--safe-top);
+}
+.content-safe-bottom {
+  padding-bottom: calc(132px + var(--safe-bottom));
+}
+.nav-safe-bottom {
+  padding-bottom: calc(24px + var(--safe-bottom));
 }

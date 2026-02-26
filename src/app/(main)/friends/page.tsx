@@ -290,7 +290,7 @@ export default function FriendsPage() {
 
   return (
     <div className="flex flex-col">
-      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
+      <header className="screen-safe-top sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
         <div />
         <h1 className="text-center font-serif text-[30px] font-bold leading-none">{t("friends_title")}</h1>
         <button

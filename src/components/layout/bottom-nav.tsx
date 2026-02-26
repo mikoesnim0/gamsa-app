@@ -59,8 +59,8 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#ece8ec] bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto flex max-w-md items-end justify-between px-6 pt-2">
+    <nav className="nav-safe-bottom fixed bottom-0 left-0 right-0 z-[160] border-t border-[#ece8ec] bg-[#f8f6f6] px-6 pt-2">
+      <div className="mx-auto flex max-w-md items-end justify-between">
         {/* Left tabs */}
         {LEFT_ITEMS.map((item) => (
           <NavTab
@@ -70,22 +70,18 @@ export function BottomNav() {
           />
         ))}
 
-        {/* Center FAB */}
+        {/* Center FAB — matches designer "from" exactly */}
         <Link
           href="/write"
-          className="-mt-7 flex items-center justify-center"
+          className="-mt-7 flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#f8f6f6] bg-[#efb8c2] shadow-[0_10px_18px_rgba(239,184,194,0.45)] active:scale-95 transition-transform"
         >
-          <div className="rounded-full border-4 border-background bg-[#efb8c2] shadow-[0_10px_18px_rgba(239,184,194,0.45)]">
-            <div className="flex h-[68px] w-[68px] items-center justify-center rounded-full active:scale-95 transition-transform">
-              <Image
-                src="/icons/dove-mail.png"
-                alt="write gratitude"
-                width={34}
-                height={34}
-                className="object-contain"
-              />
-            </div>
-          </div>
+          <Image
+            src="/icons/dove-mail.png"
+            alt="write gratitude"
+            width={36}
+            height={36}
+            className="object-contain"
+          />
         </Link>
 
         {/* Right tabs */}

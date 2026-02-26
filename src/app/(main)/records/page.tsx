@@ -508,7 +508,7 @@ export default function RecordsPage() {
       )}
 
       {/* Header — centered serif title, from reference colors */}
-      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
+      <header className="screen-safe-top sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
         <div />
         <h1 className="text-center font-serif text-[26px] font-bold leading-none text-[#1f2a3d]">{t("records_title")}</h1>
         <Button variant="ghost" size="icon" className="rounded-full" onClick={handleShare}>

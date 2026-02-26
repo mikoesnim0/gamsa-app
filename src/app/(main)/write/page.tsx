@@ -328,7 +328,7 @@ export default function WritePage() {
   return (
     <div className="flex flex-col">
       {/* Header — from reference: centered serif title */}
-      <header className="sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
+      <header className="screen-safe-top sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
         <Link href="/home">
           <Button variant="ghost" size="icon" className="rounded-full">
             <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
