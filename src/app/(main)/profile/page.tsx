@@ -1,30 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Pencil,
-  Mail,
-  Megaphone,
-  Clock,
-  Link2,
-  Shield,
-  LogOut,
-  ChevronRight,
   User,
   Loader2,
   X,
-  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Cropper from "react-easy-crop";
+import type { Area } from "react-easy-crop";
+import { MainPageHeader } from "@/components/layout/main-page-header";
 import { Button } from "@/components/ui/button";
+import { PageLoadingState } from "@/components/ui/page-state";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n-context";
 import { LANGUAGE_OPTIONS } from "@/lib/i18n";
 import type { BlockedUser } from "@/types";
+
+async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string> {
+  const image = new window.Image();
+  image.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = reject;
+    image.src = imageSrc;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
 
 const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
   const h = Math.floor(i / 2);
@@ -34,7 +56,7 @@ const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { firebaseUser, user, signOut } = useAuth();
+  const { firebaseUser, user, signOut, refreshUser } = useAuth();
   const { t, lang, setLang } = useI18n();
   const [totalSent, setTotalSent] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
@@ -46,6 +68,16 @@ export default function ProfilePage() {
   const [editBio, setEditBio] = useState("");
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Crop modal
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
 
   // Notification settings
   const [newLetterOptIn, setNewLetterOptIn] = useState(true);
@@ -111,8 +143,26 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setEditAvatarPreview(reader.result as string);
+    reader.onload = () => {
+      setCropSrc(reader.result as string);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCropOpen(true);
+    };
     reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  async function handleCropConfirm() {
+    if (!cropSrc || !croppedAreaPixels) return;
+    try {
+      const cropped = await getCroppedImg(cropSrc, croppedAreaPixels);
+      setEditAvatarPreview(cropped);
+    } catch {
+      toast.error("Failed to crop image");
+    }
+    setCropOpen(false);
+    setCropSrc(null);
   }
 
   async function handleSaveProfile() {
@@ -131,7 +181,7 @@ export default function ProfilePage() {
       });
       toast.success(t("profile_toast_updated"));
       setEditOpen(false);
-      window.location.reload();
+      await refreshUser();
     } catch {
       toast.error(t("profile_error_update"));
     } finally {
@@ -208,30 +258,35 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="screen-safe-top sticky top-0 z-10 grid grid-cols-[40px_1fr_40px] items-center bg-background/80 px-4 py-4 backdrop-blur-md">
-        <div />
-        <h1 className="text-center font-serif text-[30px] font-bold leading-none text-[#1f2a3d]">{t("profile_title")}</h1>
-        <button
-          type="button"
-          onClick={openEditProfile}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fef3f6]"
-        >
-          <Pencil className="h-4 w-4 text-[#efb8c2]" strokeWidth={1.5} />
-        </button>
-      </header>
+      <MainPageHeader
+        title={t("profile_title")}
+        right={(
+          <button
+            type="button"
+            onClick={openEditProfile}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fef3f6]"
+          >
+            <Pencil className="h-4 w-4 text-[#efb8c2]" strokeWidth={1.5} />
+          </button>
+        )}
+      />
 
       <div className="space-y-4 px-5 pb-8">
         {/* Avatar Section */}
         <div className="flex flex-col items-center gap-2 py-3">
           <div className="relative">
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-primary bg-secondary">
-              {user?.profileImg ? (
-                <Image src={user.profileImg} alt="avatar" width={112} height={112} className="h-full w-full object-cover" />
-              ) : (
-                <User className="h-12 w-12 text-primary/60" />
-              )}
-            </div>
-            <span className="absolute bottom-1 right-1 h-5 w-5 rounded-full border-[3px] border-background bg-green-400" />
+            <button type="button" onClick={openEditProfile} className="cursor-pointer">
+              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-primary bg-secondary">
+                {user?.profileImg ? (
+                  <Image src={user.profileImg} alt="avatar" width={112} height={112} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-12 w-12 text-primary/60" />
+                )}
+              </div>
+              <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-background bg-[#efb8c2]">
+                <span className="material-symbols-outlined text-[16px] text-white">photo_camera</span>
+              </span>
+            </button>
           </div>
           <div className="text-center">
             <h2 className="text-xl font-bold text-slate-900">@{displayName}</h2>
@@ -244,11 +299,9 @@ export default function ProfilePage() {
 
         {/* Stats Grid */}
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-[#9aa7ba]" />
-          </div>
+          <PageLoadingState className="py-4" />
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { value: totalSent, labelKey: "profile_stats_sent" },
               { value: 0, labelKey: "profile_stats_received" },
@@ -256,10 +309,10 @@ export default function ProfilePage() {
             ].map((stat) => (
               <div
                 key={stat.labelKey}
-                className="flex flex-col items-center rounded-xl border border-primary/10 bg-white p-4 shadow-sm"
+                className="flex flex-col items-center rounded-[20px] border border-[#f1d6de] bg-white px-3 py-5 shadow-sm"
               >
-                <span className="text-xl font-bold text-slate-900">{stat.value}</span>
-                <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                <span className="font-serif text-[26px] font-bold text-[#1f2a3d] leading-none">{stat.value}</span>
+                <span className="mt-2 text-[11px] font-semibold text-[#9aa7ba]">
                   {t(stat.labelKey)}
                 </span>
               </div>
@@ -269,11 +322,11 @@ export default function ProfilePage() {
 
         {/* Notification Settings */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{t("profile_section_notifications")}</p>
-          <div className="rounded-2xl border border-primary/10 bg-white p-2 space-y-1">
-            <div className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5">
+          <p className="mb-3 px-1 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_notifications")}</p>
+          <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
+            <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
               <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                <span className="material-symbols-outlined text-[18px] text-[#efb8c2]">mail</span>
                 <span className="text-sm font-medium text-[#334255]">{t("profile_notif_new_letter")}</span>
               </div>
               <Toggle
@@ -282,9 +335,9 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5">
+            <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
               <div className="flex items-center gap-3">
-                <Megaphone className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                <span className="material-symbols-outlined text-[18px] text-[#efb8c2]">campaign</span>
                 <span className="text-sm font-medium text-[#334255]">{t("profile_notif_marketing")}</span>
               </div>
               <Toggle
@@ -293,9 +346,9 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5">
+            <div className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5">
               <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                <span className="material-symbols-outlined text-[18px] text-[#efb8c2]">schedule</span>
                 <span className="text-sm font-medium text-[#334255]">{t("profile_notif_delivery")}</span>
               </div>
               <Toggle
@@ -310,12 +363,12 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => deliveryOptIn && setReminderDropdownOpen(!reminderDropdownOpen)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5",
+                  "flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5",
                   !deliveryOptIn && "opacity-45 cursor-not-allowed"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                  <span className="material-symbols-outlined text-[18px] text-[#efb8c2]">alarm</span>
                   <span className="text-sm font-medium text-[#334255]">{t("profile_notif_reminder_time")}</span>
                 </div>
                 <span className="rounded-full bg-[#fef3f6] px-3 py-1 text-sm text-[#7d8aa0]">{dailyReminderTime}</span>
@@ -328,7 +381,7 @@ export default function ProfilePage() {
                     className="fixed inset-0 z-20"
                     onClick={() => setReminderDropdownOpen(false)}
                   />
-                  <div className="absolute left-2 right-2 top-[64px] z-30 max-h-56 overflow-auto rounded-2xl border border-primary/10 bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.12)]">
+                  <div className="absolute left-2 right-2 top-[64px] z-30 max-h-56 overflow-auto rounded-2xl border border-[#f1d6de] bg-white p-2 shadow-[0_10px_20px_rgba(66,41,49,0.15)]">
                     {REMINDER_TIMES.map((time) => (
                       <button
                         key={time}
@@ -345,7 +398,7 @@ export default function ProfilePage() {
                       >
                         {time}
                         {dailyReminderTime === time && (
-                          <Check className="h-4 w-4 text-[#efb8c2]" />
+                          <span className="material-symbols-outlined text-[16px] text-[#efb8c2]">check</span>
                         )}
                       </button>
                     ))}
@@ -414,30 +467,30 @@ export default function ProfilePage() {
 
         {/* Security Section */}
         <section>
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{t("profile_section_security")}</p>
-          <div className="rounded-2xl border border-primary/10 bg-white p-2 space-y-1">
+          <p className="mb-3 px-1 text-sm font-bold uppercase tracking-widest text-[#9aa7ba]">{t("profile_section_security")}</p>
+          <div className="rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] p-2 space-y-1">
             <button
               type="button"
               onClick={() => toast.info(t("profile_info_link_soon"))}
-              className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5"
+              className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
             >
               <div className="flex items-center gap-3">
-                <Link2 className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                <span className="material-symbols-outlined text-[18px] text-[#efb8c2]">link</span>
                 <span className="text-sm font-medium text-[#334255]">{t("profile_security_link")}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#a6b2c5]" />
+              <span className="material-symbols-outlined text-[18px] text-[#a0afc4]">chevron_right</span>
             </button>
 
             <button
               type="button"
               onClick={openBlockList}
-              className="flex w-full items-center justify-between rounded-xl border border-primary/5 bg-white px-4 py-3.5"
+              className="flex w-full items-center justify-between rounded-xl border border-[#f6e8ec] bg-[#fffefe] px-4 py-3.5"
             >
               <div className="flex items-center gap-3">
-                <Shield className="h-5 w-5 text-[#efb8c2]" strokeWidth={1.5} />
+                <span className="material-symbols-outlined text-[18px] text-[#efb8c2]">shield</span>
                 <span className="text-sm font-medium text-[#334255]">{t("profile_security_block")}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#a6b2c5]" />
+              <span className="material-symbols-outlined text-[18px] text-[#a0afc4]">chevron_right</span>
             </button>
           </div>
         </section>
@@ -446,9 +499,9 @@ export default function ProfilePage() {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/10 py-3 text-sm font-medium text-slate-400 transition-colors hover:bg-[#fff3f6]"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#f1d6de] bg-gradient-to-br from-[#fffafb] to-[#fff7f9] py-3.5 text-sm font-medium text-[#7d8aa0] transition-colors hover:bg-[#fff3f6]"
         >
-          <LogOut className="h-4 w-4" strokeWidth={1.5} />
+          <span className="material-symbols-outlined text-[18px]">logout</span>
           {t("profile_logout")}
         </button>
       </div>
@@ -517,6 +570,53 @@ export default function ProfilePage() {
                 {t("common_save")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crop Modal */}
+      {cropOpen && cropSrc && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 px-4">
+          <div className="w-full max-w-[360px] rounded-[22px] bg-card p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-serif text-lg font-bold">{t("profile_crop_title")}</h3>
+              <button type="button" onClick={() => { setCropOpen(false); setCropSrc(null); }}>
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="relative mx-auto h-64 w-full overflow-hidden rounded-xl bg-black">
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px] text-[#9aa7ba]">photo_size_select_small</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="h-1 flex-1 appearance-none rounded-full bg-[#f1d6de] accent-[#efb8c2]"
+              />
+              <span className="material-symbols-outlined text-[18px] text-[#9aa7ba]">photo_size_select_large</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCropConfirm}
+              className="mt-3 w-full rounded-full bg-primary py-3 text-base font-bold"
+            >
+              {t("common_confirm")}
+            </button>
           </div>
         </div>
       )}
