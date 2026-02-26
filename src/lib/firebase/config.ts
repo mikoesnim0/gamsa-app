@@ -62,15 +62,17 @@ export function getFirebaseAuth(): Auth {
     if (useEmulator) {
       connectAuthEmulator(_auth, "http://127.0.0.1:9099", { disableWarnings: true });
     }
-    // localhost 개발 환경: reCAPTCHA 우회 (Firebase Console에 등록된 테스트 전화번호만 동작)
-    // 프로덕션에서는 실제 reCAPTCHA Enterprise가 동작
-    if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-      _auth.settings.appVerificationDisabledForTesting = true;
-      if (process.env.NODE_ENV === "development") {
-        console.info("[firebase-auth] phone app verification disabled for testing", {
-          host: window.location.hostname,
-          isLocalDevHost: isLocalDevHost(window.location.hostname),
-        });
+    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+      console.info("[firebase] connected project:", {
+        projectId: firebaseConfig.projectId,
+        authDomain: firebaseConfig.authDomain,
+        host: window.location.hostname,
+      });
+      // localhost 개발 환경: reCAPTCHA 우회
+      // ⚠️ 이 모드에서는 Firebase Console에 등록된 "테스트 전화번호"만 동작합니다!
+      if (isLocalDevHost(window.location.hostname)) {
+        _auth.settings.appVerificationDisabledForTesting = true;
+        console.info("[firebase-auth] appVerificationDisabledForTesting = true (test phone numbers only)");
       }
     }
   }
