@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Share2, ChevronRight, Check, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Share2, ChevronRight, Check, Loader2, Users, Clock, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ const EMOTION_COLORS: Record<string, string> = {
 type DateFilter = "recent" | "oldest" | "week" | "month" | "year";
 type OpenMenu = "date" | "emotion" | "friend" | null;
 type TabKey = "total" | "sent" | "received";
+type ViewMode = "timeline" | "grouped";
 
 const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
   { value: "recent", label: "최신순" },
@@ -93,9 +94,27 @@ export default function RecordsPage() {
   const [menuOpen, setMenuOpen] = useState<OpenMenu>(null);
   const [showAll, setShowAll] = useState(false);
 
-  // Support ?tab=received from home page link
+  // Support ?tab=received and ?highlight=entryId from other pages
   const initialTab = searchParams.get("tab") === "received" ? "received" : "total";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const [viewMode, setViewMode] = useState<ViewMode>("timeline");
+  const highlightId = searchParams.get("highlight");
+  const [highlightActive, setHighlightActive] = useState<string | null>(highlightId);
+  const highlightRef = useRef<HTMLDivElement>(null);
+  // Expanded grouped sections
+  const [expandedTargets, setExpandedTargets] = useState<Set<string>>(new Set());
+
+  // Highlight scroll + auto-dismiss
+  useEffect(() => {
+    if (!highlightActive) return;
+    // Scroll into view after render
+    const timer = setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+    // Fade out highlight after 2s
+    const fadeTimer = setTimeout(() => setHighlightActive(null), 2500);
+    return () => { clearTimeout(timer); clearTimeout(fadeTimer); };
+  }, [highlightActive]);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -198,6 +217,7 @@ export default function RecordsPage() {
         : new Date(entry.createdAt as unknown as string);
       return {
         id: entry.id,
+        targetId: entry.targetId ?? "_self",
         name: entry.targetId ? (targetNames[entry.targetId] ?? "알 수 없음") : "나에게",
         preview: entry.content.slice(0, 40) + (entry.content.length > 40 ? "..." : ""),
         timeAgo: getRelativeTime(d),
@@ -205,6 +225,57 @@ export default function RecordsPage() {
       };
     });
   }, [filteredEntries, targetNames]);
+
+  // Group letters by target for grouped view
+  const groupedLetters = useMemo(() => {
+    const groups: { targetId: string; name: string; count: number; letters: typeof lettersList }[] = [];
+    const map = new Map<string, typeof lettersList>();
+    for (const letter of lettersList) {
+      const key = letter.targetId;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(letter);
+    }
+    for (const [targetId, letters] of map) {
+      groups.push({
+        targetId,
+        name: letters[0].name,
+        count: letters.length,
+        letters,
+      });
+    }
+    // Sort groups by most recent letter
+    groups.sort((a, b) => {
+      // Group with highlighted entry goes first if present
+      if (highlightActive) {
+        const aHas = a.letters.some((l) => l.id === highlightActive);
+        const bHas = b.letters.some((l) => l.id === highlightActive);
+        if (aHas && !bHas) return -1;
+        if (bHas && !aHas) return 1;
+      }
+      return b.count - a.count;
+    });
+    return groups;
+  }, [lettersList, highlightActive]);
+
+  // Auto-expand group containing highlighted entry
+  useEffect(() => {
+    if (!highlightActive) return;
+    for (const group of groupedLetters) {
+      if (group.letters.some((l) => l.id === highlightActive)) {
+        setExpandedTargets((prev) => new Set(prev).add(group.targetId));
+        break;
+      }
+    }
+  }, [highlightActive, groupedLetters]);
+
+  const toggleTargetExpand = useCallback((targetId: string) => {
+    setExpandedTargets((prev) => {
+      const next = new Set(prev);
+      if (next.has(targetId)) next.delete(targetId);
+      else next.add(targetId);
+      return next;
+    });
+  }, []);
 
   const displayedLetters = showAll ? lettersList : lettersList.slice(0, 3);
 
@@ -274,41 +345,135 @@ export default function RecordsPage() {
     );
   }
 
-  // Letters list component (reused) — from reference exact colors
+  // Single letter card component with highlight support
+  function LetterCard({ letter }: { letter: (typeof lettersList)[number] }) {
+    const isHighlighted = highlightActive === letter.id;
+    return (
+      <Link href={`/records/${letter.id}`}>
+        <div
+          ref={isHighlighted ? highlightRef : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-[30px] border px-3 py-3 transition-all duration-700",
+            isHighlighted
+              ? "border-[#efb8c2] bg-[#fff3f6] shadow-[0_0_0_3px_rgba(239,184,194,0.3)] animate-pulse"
+              : "border-[#ece8ea] bg-[#f2f2f3] hover:bg-[#eeeced]"
+          )}
+        >
+          <Avatar className="h-12 w-12">
+            <AvatarFallback className="bg-[#edd1b5] font-serif text-lg text-white">
+              {letter.name[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <p className="truncate font-serif text-[18px] font-bold leading-none text-[#243244]">
+                {letter.name}
+              </p>
+              <span className="ml-2 shrink-0 text-[10px] text-[#a6b0bf]">
+                {letter.timeAgo}
+              </span>
+            </div>
+            <p className="mt-1 truncate text-[14px] text-[#718096]">
+              {letter.preview}
+            </p>
+            {letter.tag && (
+              <p className="mt-1 text-[12px] text-[#93a3bf]">{letter.tag}</p>
+            )}
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-[#c6ceda]" />
+        </div>
+      </Link>
+    );
+  }
+
+  // Letters list — timeline view
   function LettersList({ letters, emptyText }: { letters: typeof lettersList; emptyText: string }) {
     return letters.length > 0 ? (
       <div className="space-y-3">
         {letters.map((letter) => (
-          <Link key={letter.id} href={`/records/${letter.id}`}>
-            <div className="flex items-center gap-3 rounded-[30px] border border-[#ece8ea] bg-[#f2f2f3] px-3 py-3 transition-colors hover:bg-[#eeeced]">
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-[#edd1b5] font-serif text-lg text-white">
-                  {letter.name[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between">
-                  <p className="truncate font-serif text-[18px] font-bold leading-none text-[#243244]">
-                    {letter.name}
-                  </p>
-                  <span className="ml-2 shrink-0 text-[10px] text-[#a6b0bf]">
-                    {letter.timeAgo}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-[14px] text-[#718096]">
-                  {letter.preview}
-                </p>
-                {letter.tag && (
-                  <p className="mt-1 text-[12px] text-[#93a3bf]">{letter.tag}</p>
-                )}
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-[#c6ceda]" />
-            </div>
-          </Link>
+          <LetterCard key={letter.id} letter={letter} />
         ))}
       </div>
     ) : (
       <p className="py-8 text-center text-sm text-[#8d99ac]">{emptyText}</p>
+    );
+  }
+
+  // Letters list — grouped by target
+  function GroupedLettersList({ emptyText }: { emptyText: string }) {
+    if (groupedLetters.length === 0) {
+      return <p className="py-8 text-center text-sm text-[#8d99ac]">{emptyText}</p>;
+    }
+    return (
+      <div className="space-y-4">
+        {groupedLetters.map((group) => {
+          const isExpanded = expandedTargets.has(group.targetId);
+          return (
+            <div key={group.targetId} className="rounded-[30px] border border-[#ece8ea] bg-[#f2f2f3] overflow-hidden">
+              {/* Group header */}
+              <button
+                type="button"
+                onClick={() => toggleTargetExpand(group.targetId)}
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#eeeced]"
+              >
+                <Avatar className="h-11 w-11">
+                  <AvatarFallback className="bg-[#edd1b5] font-serif text-lg text-white">
+                    {group.name[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-serif text-[18px] font-bold leading-none text-[#243244]">
+                    {group.name}
+                  </p>
+                  <p className="mt-1.5 text-[13px] text-[#8d99ac]">
+                    {group.count}개의 감사
+                  </p>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "h-5 w-5 shrink-0 text-[#c6ceda] transition-transform duration-200",
+                    isExpanded && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {/* Expanded letters */}
+              {isExpanded && (
+                <div className="space-y-2 px-3 pb-3">
+                  {group.letters.map((letter) => (
+                    <Link key={letter.id} href={`/records/${letter.id}`}>
+                      <div
+                        ref={highlightActive === letter.id ? highlightRef : undefined}
+                        className={cn(
+                          "flex items-center gap-3 rounded-[22px] border px-3 py-2.5 transition-all duration-700",
+                          highlightActive === letter.id
+                            ? "border-[#efb8c2] bg-[#fff3f6] shadow-[0_0_0_3px_rgba(239,184,194,0.3)] animate-pulse"
+                            : "border-[#e8e5e7] bg-white hover:bg-[#faf8f9]"
+                        )}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <p className="truncate text-[15px] font-semibold text-[#243244]">
+                              {letter.preview}
+                            </p>
+                            <span className="ml-2 shrink-0 text-[10px] text-[#a6b0bf]">
+                              {letter.timeAgo}
+                            </span>
+                          </div>
+                          {letter.tag && (
+                            <p className="mt-1 text-[12px] text-[#93a3bf]">{letter.tag}</p>
+                          )}
+                        </div>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-[#c6ceda]" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     );
   }
 
@@ -506,28 +671,72 @@ export default function RecordsPage() {
                 </div>
               </div>
 
-              {/* Letters */}
+              {/* View mode toggle + Letters */}
               <section>
                 <div className="mb-4 flex items-end justify-between">
-                  <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">최근 감사</h3>
-                  {lettersList.length > 3 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAll(!showAll)}
-                      className="text-[14px] font-semibold text-primary"
-                    >
-                      {showAll ? "접기" : "전체 보기"}
-                    </button>
-                  )}
+                  <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">
+                    {viewMode === "grouped" ? "대상별 감사" : "최근 감사"}
+                  </h3>
+                  <div className="flex items-center gap-1">
+                    {/* View toggle */}
+                    <div className="mr-2 flex rounded-full border border-[#ece8ea] bg-white p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("timeline")}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                          viewMode === "timeline"
+                            ? "bg-[#efb8c2] text-[#354257]"
+                            : "text-[#8d99ac]"
+                        )}
+                      >
+                        <Clock className="h-3 w-3" />
+                        시간순
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("grouped")}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                          viewMode === "grouped"
+                            ? "bg-[#efb8c2] text-[#354257]"
+                            : "text-[#8d99ac]"
+                        )}
+                      >
+                        <Users className="h-3 w-3" />
+                        대상별
+                      </button>
+                    </div>
+                    {viewMode === "timeline" && lettersList.length > 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAll(!showAll)}
+                        className="text-[14px] font-semibold text-[#efb8c2]"
+                      >
+                        {showAll ? "접기" : "전체 보기"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <LettersList
-                  letters={displayedLetters}
-                  emptyText={
-                    selectedEmotions.length > 0 || selectedFriends.length > 0
-                      ? "필터 조건에 맞는 기록이 없습니다."
-                      : "기록이 없습니다."
-                  }
-                />
+
+                {viewMode === "timeline" ? (
+                  <LettersList
+                    letters={displayedLetters}
+                    emptyText={
+                      selectedEmotions.length > 0 || selectedFriends.length > 0
+                        ? "필터 조건에 맞는 기록이 없습니다."
+                        : "기록이 없습니다."
+                    }
+                  />
+                ) : (
+                  <GroupedLettersList
+                    emptyText={
+                      selectedEmotions.length > 0 || selectedFriends.length > 0
+                        ? "필터 조건에 맞는 기록이 없습니다."
+                        : "기록이 없습니다."
+                    }
+                  />
+                )}
               </section>
             </div>
           )}
@@ -546,8 +755,42 @@ export default function RecordsPage() {
 
               {/* Letters */}
               <section>
-                <h3 className="mb-4 font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">보낸 감사 목록</h3>
-                <LettersList letters={lettersList} emptyText="보낸 감사가 없습니다." />
+                <div className="mb-4 flex items-end justify-between">
+                  <h3 className="font-serif text-[28px] font-bold leading-none text-[#1f2a3d]">보낸 감사 목록</h3>
+                  <div className="flex rounded-full border border-[#ece8ea] bg-white p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("timeline")}
+                      className={cn(
+                        "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                        viewMode === "timeline"
+                          ? "bg-[#efb8c2] text-[#354257]"
+                          : "text-[#8d99ac]"
+                      )}
+                    >
+                      <Clock className="h-3 w-3" />
+                      시간순
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("grouped")}
+                      className={cn(
+                        "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                        viewMode === "grouped"
+                          ? "bg-[#efb8c2] text-[#354257]"
+                          : "text-[#8d99ac]"
+                      )}
+                    >
+                      <Users className="h-3 w-3" />
+                      대상별
+                    </button>
+                  </div>
+                </div>
+                {viewMode === "timeline" ? (
+                  <LettersList letters={lettersList} emptyText="보낸 감사가 없습니다." />
+                ) : (
+                  <GroupedLettersList emptyText="보낸 감사가 없습니다." />
+                )}
               </section>
             </div>
           )}
