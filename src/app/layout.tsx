@@ -20,12 +20,12 @@ const notoSerifKr = Noto_Serif_KR({
 });
 
 export const metadata: Metadata = {
-  title: "감사노트 — 매일 감사를 기록하고, 마음을 전하세요",
+  title: "Gratella — 매일 감사를 기록하고, 마음을 전하세요",
   description: "매일 감사를 기록하고, 그 마음이 상대방에게 도착하는 앱. 혼잣말이 아니라 '도착하는 감사'입니다.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "감사노트",
+    title: "Gratella",
   },
   formatDetection: {
     telephone: false,
@@ -48,6 +48,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+        />
+      </head>
       <body
         className={`${notoSansKr.variable} ${notoSerifKr.variable} font-sans antialiased`}
       >

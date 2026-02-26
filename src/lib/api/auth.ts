@@ -12,7 +12,8 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFirebaseAuth, getFirebaseDb, getFirebaseStorage } from "@/lib/firebase/config";
 import type { User } from "@/types";
 
 let confirmationResult: ConfirmationResult | null = null;
@@ -143,6 +144,19 @@ export async function getNotificationSettings(
     marketingOptIn: data?.marketingOptIn ?? false,
     dailyReminderTime: data?.dailyReminderTime ?? "09:00",
   };
+}
+
+/** Upload a profile image (data URL) and return the download URL */
+export async function uploadProfileImage(
+  userId: string,
+  dataUrl: string
+): Promise<string> {
+  const storage = getFirebaseStorage();
+  const storageRef = ref(storage, `users/${userId}/profile.jpg`);
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+  return getDownloadURL(storageRef);
 }
 
 function generateInviteCode(): string {

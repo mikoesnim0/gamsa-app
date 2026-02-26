@@ -120,9 +120,15 @@ export default function ProfilePage() {
     if (!firebaseUser) return;
     setSaving(true);
     try {
+      let profileImg: string | undefined;
+      // Upload new avatar if changed (data URL starts with "data:")
+      if (editAvatarPreview && editAvatarPreview.startsWith("data:")) {
+        profileImg = await api.auth.uploadProfileImage(firebaseUser.uid, editAvatarPreview);
+      }
       await api.auth.updateUserProfile(firebaseUser.uid, {
         name: editName.trim(),
         bio: editBio.trim() || null,
+        ...(profileImg ? { profileImg } : {}),
       });
       toast.success(t("profile_toast_updated"));
       setEditOpen(false);

@@ -7,6 +7,7 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
+import { getStorage as _getStorage, connectStorageEmulator, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator, type Functions } from "firebase/functions";
 
 const firebaseConfig = {
@@ -29,6 +30,7 @@ function getFirebaseApp(): FirebaseApp {
 let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
 let _functions: Functions | null = null;
 
 export function getApp(): FirebaseApp {
@@ -84,6 +86,16 @@ export function getFirebaseDb(): Firestore {
   return _db;
 }
 
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!_storage) {
+    _storage = _getStorage(getApp());
+    if (useEmulator) {
+      connectStorageEmulator(_storage, "127.0.0.1", 9199);
+    }
+  }
+  return _storage;
+}
+
 export function getFirebaseFunctions(): Functions {
   if (!_functions) {
     _functions = getFunctions(getApp(), "asia-northeast3");
@@ -103,6 +115,9 @@ export const auth = new Proxy({} as Auth, {
 });
 export const db = new Proxy({} as Firestore, {
   get(_, prop) { return Reflect.get(getFirebaseDb(), prop); },
+});
+export const storage = new Proxy({} as FirebaseStorage, {
+  get(_, prop) { return Reflect.get(getFirebaseStorage(), prop); },
 });
 export const functions = new Proxy({} as Functions, {
   get(_, prop) { return Reflect.get(getFirebaseFunctions(), prop); },
