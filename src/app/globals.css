@@ -199,5 +199,5 @@
   padding-bottom: calc(132px + var(--safe-bottom));
 }
 .nav-safe-bottom {
-  padding-bottom: calc(24px + var(--safe-bottom));
+  padding-bottom: calc(max(12px, var(--safe-bottom)) + 8px);
 }
