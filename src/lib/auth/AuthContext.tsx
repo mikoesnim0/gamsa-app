@@ -38,7 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = api.auth.onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const userDoc = await api.auth.getUserProfile(firebaseUser.uid);
+          const userDoc = await Promise.race([
+            api.auth.getUserProfile(firebaseUser.uid),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+          ]);
           setState({
             firebaseUser,
             user: userDoc,
