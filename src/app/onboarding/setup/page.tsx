@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function OnboardingSetupPage() {
   const router = useRouter();
-  const { firebaseUser, refreshUser } = useAuth();
+  const { firebaseUser } = useAuth();
   const [name, setName] = useState("");
   const [hour, setHour] = useState(21);
   const [minute, setMinute] = useState(0);
@@ -35,10 +35,9 @@ export default function OnboardingSetupPage() {
     try {
       if (firebaseUser) {
         await api.auth.updateUserProfile(firebaseUser.uid, { name: name.trim() });
-        await refreshUser();
       }
     } catch (err) {
-      console.error("[onboarding] updateUserProfile failed (ad blocker?)", err);
+      console.error("[onboarding] updateUserProfile failed", err);
     }
     router.push("/home");
   }
