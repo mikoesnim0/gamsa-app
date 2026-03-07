@@ -39,8 +39,11 @@ export default function OnboardingSetupPage() {
     try {
       if (firebaseUser) {
         console.log("[onboarding] calling updateUserProfile...");
-        await api.auth.updateUserProfile(firebaseUser.uid, { name: name.trim() });
-        console.log("[onboarding] updateUserProfile success");
+        await Promise.race([
+          api.auth.updateUserProfile(firebaseUser.uid, { name: name.trim() }),
+          new Promise<void>((resolve) => setTimeout(() => { console.log("[onboarding] updateUserProfile timeout (3s)"); resolve(); }, 3000)),
+        ]);
+        console.log("[onboarding] updateUserProfile done");
       } else {
         console.log("[onboarding] firebaseUser is null, skipping updateUserProfile");
       }
