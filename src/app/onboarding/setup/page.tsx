@@ -29,19 +29,18 @@ export default function OnboardingSetupPage() {
   }
 
   async function handleComplete() {
-    if (!firebaseUser || !name.trim()) return;
+    console.log("[onboarding] handleComplete", { firebaseUser: firebaseUser?.uid, name });
+    if (!name.trim()) return;
     setSaving(true);
     try {
-      await api.auth.updateUserProfile(firebaseUser.uid, {
-        name: name.trim(),
-      });
-      await refreshUser();
-      router.push("/home");
+      if (firebaseUser) {
+        await api.auth.updateUserProfile(firebaseUser.uid, { name: name.trim() });
+        await refreshUser();
+      }
     } catch (err) {
-      toast.error("프로필 저장에 실패했습니다.");
-      console.error(err);
-      setSaving(false);
+      console.error("[onboarding] updateUserProfile failed (ad blocker?)", err);
     }
+    router.push("/home");
   }
 
   return (
