@@ -29,16 +29,25 @@ export default function OnboardingSetupPage() {
   }
 
   async function handleComplete() {
-    console.log("[onboarding] handleComplete", { firebaseUser: firebaseUser?.uid, name });
-    if (!name.trim()) return;
+    console.log("[onboarding] handleComplete called", { firebaseUser: firebaseUser?.uid, name, saving });
+    if (!name.trim()) {
+      console.log("[onboarding] blocked: name is empty");
+      return;
+    }
+    console.log("[onboarding] setSaving(true)");
     setSaving(true);
     try {
       if (firebaseUser) {
+        console.log("[onboarding] calling updateUserProfile...");
         await api.auth.updateUserProfile(firebaseUser.uid, { name: name.trim() });
+        console.log("[onboarding] updateUserProfile success");
+      } else {
+        console.log("[onboarding] firebaseUser is null, skipping updateUserProfile");
       }
     } catch (err) {
       console.error("[onboarding] updateUserProfile failed", err);
     }
+    console.log("[onboarding] router.push /home");
     router.push("/home");
   }
 
