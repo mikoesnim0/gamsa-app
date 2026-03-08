@@ -6,7 +6,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
 import { getStorage as _getStorage, connectStorageEmulator, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator, type Functions } from "firebase/functions";
 
@@ -81,9 +81,15 @@ export function getFirebaseAuth(): Auth {
 
 export function getFirebaseDb(): Firestore {
   if (!_db) {
-    _db = getFirestore(getApp());
     if (useEmulator) {
+      _db = getFirestore(getApp());
       connectFirestoreEmulator(_db, "127.0.0.1", 8080);
+    } else {
+      // experimentalAutoDetectLongPolling: false → WebChannel만 사용.
+      // 광고차단기가 막으면 빠르게 에러를 내도록 long-polling fallback 비활성화.
+      _db = initializeFirestore(getApp(), {
+        experimentalAutoDetectLongPolling: false,
+      });
     }
   }
   return _db;

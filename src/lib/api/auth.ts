@@ -23,6 +23,16 @@ import type { User } from "@/types";
 let confirmationResult: ConfirmationResult | null = null;
 let recaptchaVerifier: RecaptchaVerifier | null = null;
 
+/** Firestore 호출에 타임아웃을 건다. 막히면 즉시 에러. */
+function withTimeout<T>(promise: Promise<T>, ms = 3000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Firestore timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export async function sendVerificationCode(
   phoneNumber: string,
   recaptchaContainerId: string
@@ -59,7 +69,7 @@ export async function sendVerificationCode(
 async function ensureUserDoc(firebaseUser: { uid: string; displayName?: string | null; photoURL?: string | null }): Promise<User> {
   const db = getFirebaseDb();
   const userDocRef = doc(db, "users", firebaseUser.uid);
-  const userSnap = await getDoc(userDocRef);
+  const userSnap = await withTimeout(getDoc(userDocRef));
 
   if (!userSnap.exists()) {
     const newUser: Omit<User, "id"> = {
@@ -72,7 +82,7 @@ async function ensureUserDoc(firebaseUser: { uid: string; displayName?: string |
       createdAt: serverTimestamp() as never,
       updatedAt: serverTimestamp() as never,
     };
-    await setDoc(userDocRef, newUser);
+    await withTimeout(setDoc(userDocRef, newUser));
     return { id: firebaseUser.uid, ...newUser } as User;
   }
 
@@ -100,68 +110,37 @@ export async function signInWithApple(): Promise<User> {
   return ensureUserDoc(result.user);
 }
 
-/** KakaoTalk Sign-In: Kakao JS SDK → Cloud Function → Custom Token */
-export async function signInWithKakao(): Promise<User> {
-  // 1. Kakao SDK login — get access token
-  const kakaoToken = await getKakaoAccessToken();
+/** KakaoTalk Sign-In: redirect to Kakao authorize page */
+export function startKakaoLogin(): void {
+  // authorize 엔드포인트에는 REST API Key를 사용해야 합니다 (JS Key 아님)
+  const restApiKey = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY;
+  if (!restApiKey) throw new Error("NEXT_PUBLIC_KAKAO_REST_API_KEY is not set");
 
-  // 2. Send to Cloud Function to exchange for Firebase custom token
-  const fn = httpsCallable<{ accessToken: string }, { customToken: string }>(
-    getFirebaseFunctions(),
-    "kakaoAuth"
-  );
-  const { data } = await fn({ accessToken: kakaoToken });
+  const redirectUri = window.location.origin;
+  const kakaoAuthUrl =
+    `https://kauth.kakao.com/oauth/authorize?client_id=${restApiKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+  window.location.href = kakaoAuthUrl;
+}
 
-  // 3. Sign in with custom token
+/** Complete Kakao login: exchange authorization code for Firebase custom token */
+export async function completeKakaoLogin(code: string): Promise<User> {
+  const redirectUri = window.location.origin;
+
+  const fn = httpsCallable<
+    { code: string; redirectUri: string },
+    { customToken: string }
+  >(getFirebaseFunctions(), "kakaoAuth");
+  const { data } = await fn({ code, redirectUri });
+
   const authInstance = getFirebaseAuth();
   const credential = await signInWithCustomToken(authInstance, data.customToken);
-  return ensureUserDoc(credential.user);
-}
-
-/** Load Kakao JS SDK and get access token via popup */
-function getKakaoAccessToken(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-    if (!kakaoKey) {
-      reject(new Error("NEXT_PUBLIC_KAKAO_JS_KEY is not set"));
-      return;
-    }
-
-    function doLogin() {
-      const { Kakao } = window as unknown as { Kakao: KakaoSDK };
-      if (!Kakao.isInitialized()) {
-        Kakao.init(kakaoKey!);
-      }
-      Kakao.Auth.login({
-        success: (authObj: { access_token: string }) => resolve(authObj.access_token),
-        fail: (err: unknown) => reject(err),
-      });
-    }
-
-    // Load SDK script if not already loaded
-    const w = window as unknown as { Kakao?: KakaoSDK };
-    if (w.Kakao) {
-      doLogin();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://developers.kakao.com/sdk/js/kakao.min.js";
-    script.onload = doLogin;
-    script.onerror = () => reject(new Error("Failed to load Kakao SDK"));
-    document.head.appendChild(script);
-  });
-}
-
-interface KakaoSDK {
-  isInitialized(): boolean;
-  init(key: string): void;
-  Auth: {
-    login(opts: {
-      success: (authObj: { access_token: string }) => void;
-      fail: (err: unknown) => void;
-    }): void;
-  };
+  try {
+    return await ensureUserDoc(credential.user);
+  } catch (docErr) {
+    console.warn("[kakaoAuth] ensureUserDoc failed (offline?), returning partial user", docErr);
+    // Auth succeeded — return minimal user so the app can navigate
+    return { id: credential.user.uid, name: credential.user.displayName ?? "", profileImg: credential.user.photoURL ?? null } as unknown as User;
+  }
 }
 
 export async function signOut(): Promise<void> {
@@ -181,7 +160,7 @@ export function getCurrentUserId(): string | null {
 export async function getUserProfile(userId: string): Promise<User | null> {
   const db = getFirebaseDb();
   const userRef = doc(db, "users", userId);
-  const snap = await getDoc(userRef);
+  const snap = await withTimeout(getDoc(userRef));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as User;
 }
@@ -192,7 +171,7 @@ export async function updateUserProfile(
 ): Promise<void> {
   const db = getFirebaseDb();
   const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, { ...data, updatedAt: serverTimestamp() });
+  await withTimeout(updateDoc(userRef, { ...data, updatedAt: serverTimestamp() }));
 }
 
 export async function updateNotificationSettings(
@@ -236,6 +215,20 @@ export async function uploadProfileImage(
 ): Promise<string> {
   const storage = getFirebaseStorage();
   const storageRef = ref(storage, `users/${userId}/profile.jpg`);
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+  return getDownloadURL(storageRef);
+}
+
+/** Upload a gratitude entry image (data URL) and return the download URL */
+export async function uploadEntryImage(
+  userId: string,
+  dataUrl: string
+): Promise<string> {
+  const storage = getFirebaseStorage();
+  const filename = `${Date.now()}.jpg`;
+  const storageRef = ref(storage, `users/${userId}/entries/${filename}`);
   const res = await fetch(dataUrl);
   const blob = await res.blob();
   await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
