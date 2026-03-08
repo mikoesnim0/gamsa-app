@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n-context";
@@ -28,6 +28,7 @@ export default function HomePage() {
   const [todayCount, setTodayCount] = useState(0);
   const [hasUnread, setHasUnread] = useState(false);
   const [receivedCount, setReceivedCount] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
   function getRelativeTime(date: Date): string {
@@ -53,13 +54,15 @@ export default function HomePage() {
       api.gratitude.getTodayEntryCount(uid),
       api.notifications.getUnreadCount(uid),
       api.gratitude.getWeeklyReceivedCount(uid),
+      api.streak.getStreak(uid),
     ])
-      .then(([recentEntries, targetList, count, unreadCount, weeklyReceived]) => {
+      .then(([recentEntries, targetList, count, unreadCount, weeklyReceived, streakData]) => {
         setEntries(recentEntries);
         setTargets(targetList);
         setTodayCount(count);
         setHasUnread(unreadCount > 0);
         setReceivedCount(weeklyReceived);
+        setCurrentStreak(streakData.currentStreak ?? 0);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -133,6 +136,8 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, targetNames, t]);
 
+  const [recentExpanded, setRecentExpanded] = useState(true);
+
   const letterCount = entries.length;
   const sentCount = todayCount;
 
@@ -194,13 +199,16 @@ export default function HomePage() {
           {/* Letter Count Gradient Card */}
           <Link
             href="/records"
-            className="flex h-[150px] w-full items-center justify-center rounded-[38px]"
+            className="flex h-[150px] w-full flex-col items-center justify-center gap-1 rounded-[38px]"
             style={{
               background: "linear-gradient(90deg, #d79284 0%, #e2c3ac 52%, #e5e8db 100%)",
             }}
           >
-            <span className="font-serif text-[38px] font-bold italic leading-none text-[#efc4cc]">
-              {letterCount} {t("home_letters_label")}
+            <span className="font-serif text-[52px] font-bold italic leading-none text-[#efc4cc]">
+              {currentStreak}
+            </span>
+            <span className="font-sans text-[15px] font-semibold text-white/80">
+              {t("home_streak_label")}
             </span>
           </Link>
         </section>
@@ -286,9 +294,18 @@ export default function HomePage() {
         {/* ── Section 5: Recent Letters ── */}
         <section className="mb-8">
           <div className="mb-4 flex items-end justify-between">
-            <h3 className="font-serif text-[30px] font-bold leading-none tracking-[-0.7px] text-[#141f35]">
-              {t("home_recent_gratitude")}
-            </h3>
+            <button
+              type="button"
+              onClick={() => setRecentExpanded(!recentExpanded)}
+              className="flex items-center gap-2"
+            >
+              <h3 className="font-serif text-[30px] font-bold leading-none tracking-[-0.7px] text-[#141f35]">
+                {t("home_recent_gratitude")}
+              </h3>
+              <ChevronDown
+                className={`h-5 w-5 text-[#9aa7ba] transition-transform duration-200 ${recentExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
             <Link
               href="/records"
               className="text-[17px] font-semibold text-[#f0b7c4]"
@@ -297,6 +314,7 @@ export default function HomePage() {
             </Link>
           </div>
 
+          {recentExpanded && (
           <div className="space-y-5">
             {recentLetters.length === 0 ? (
               <div className="rounded-[26px] bg-[#f2f2f3] px-4 py-5 text-[15px] text-[#8d99ac]">
@@ -353,19 +371,9 @@ export default function HomePage() {
               ))
             )}
           </div>
+          )}
         </section>
 
-        {/* ── Insights Banner ── */}
-        <div className="mb-6 flex items-center gap-3 rounded-full bg-[#f7efe6] px-5 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-            <span className="material-symbols-outlined text-[18px] text-[#eeb8c3]">
-              sentiment_satisfied
-            </span>
-          </div>
-          <p className="text-[13px] font-medium text-[#1d2b44]">
-            {t("home_insight_banner")}
-          </p>
-        </div>
       </div>
     </main>
   );
