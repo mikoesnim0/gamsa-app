@@ -217,8 +217,8 @@ export async function uploadProfileImage(
   const storageRef = ref(storage, `users/${userId}/profile.jpg`);
   const res = await fetch(dataUrl);
   const blob = await res.blob();
-  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-  return getDownloadURL(storageRef);
+  await withTimeout(uploadBytes(storageRef, blob, { contentType: "image/jpeg" }), 10000);
+  return withTimeout(getDownloadURL(storageRef));
 }
 
 /** Upload a gratitude entry image (data URL) and return the download URL */

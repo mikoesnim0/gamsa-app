@@ -100,8 +100,12 @@ export default function OnboardingSetupPage() {
         let profileImg: string | undefined;
         if (avatarPreview && avatarPreview.startsWith("data:")) {
           console.log("[onboarding] uploading profile image...");
-          profileImg = await api.auth.uploadProfileImage(firebaseUser.uid, avatarPreview);
-          console.log("[onboarding] image uploaded:", profileImg);
+          try {
+            profileImg = await api.auth.uploadProfileImage(firebaseUser.uid, avatarPreview);
+            console.log("[onboarding] image uploaded:", profileImg);
+          } catch (uploadErr) {
+            console.warn("[onboarding] image upload failed, skipping", uploadErr);
+          }
         }
         await api.auth.updateUserProfile(firebaseUser.uid, { name: name.trim(), ...(profileImg ? { profileImg } : {}) });
         console.log("[onboarding] updateUserProfile done");
